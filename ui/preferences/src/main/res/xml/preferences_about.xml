@@ -10,10 +10,6 @@
             android:icon="@drawable/ic_star"
             android:summary="1.7.2 (asd8qs)"/>
     <Preference
-            android:key="about_source"
-            android:icon="@drawable/ic_info"
-            android:title="@string/about_source_title"/>
-    <Preference
             android:key="about_contributors"
             android:icon="@drawable/ic_contributors"
             android:summary="@string/contributors_summary"
@@ -28,5 +24,9 @@
             android:icon="@drawable/ic_info"
             android:summary="@string/licenses_summary"
             android:title="@string/licenses"/>
+    <Preference
+            android:key="about_source"
+            android:icon="@drawable/ic_info"
+            android:title="@string/about_source_title"/>
 
 </PreferenceScreen>
