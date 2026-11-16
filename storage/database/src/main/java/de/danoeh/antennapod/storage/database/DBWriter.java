@@ -40,6 +40,7 @@ import de.danoeh.antennapod.event.FeedListUpdateEvent;
 import de.danoeh.antennapod.event.playback.PlaybackHistoryEvent;
 import de.danoeh.antennapod.event.QueueEvent;
 import de.danoeh.antennapod.event.FeedEvent;
+import de.danoeh.antennapod.storage.preferences.GuardianGate;
 import de.danoeh.antennapod.storage.preferences.PlaybackPreferences;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
 import de.danoeh.antennapod.model.download.DownloadResult;
@@ -862,6 +863,10 @@ public class DBWriter {
     public static Future<?> setFeedState(Context context, Feed feed, int newState) {
         int oldState = feed.getState();
         return runOnDbThread(() -> {
+            if (oldState == Feed.STATE_NOT_SUBSCRIBED && newState == Feed.STATE_SUBSCRIBED
+                    && !GuardianGate.isOpen()) {
+                throw new GuardianGateClosedException(feed.getDownloadUrl());
+            }
             PodDBAdapter adapter = PodDBAdapter.getInstance();
             adapter.open();
             adapter.setFeedState(feed.getId(), newState);

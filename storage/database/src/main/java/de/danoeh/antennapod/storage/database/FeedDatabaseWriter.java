@@ -12,6 +12,7 @@ import de.danoeh.antennapod.model.feed.FeedPreferences;
 import de.danoeh.antennapod.model.feed.SortOrder;
 import de.danoeh.antennapod.net.sync.serviceinterface.EpisodeAction;
 import de.danoeh.antennapod.net.sync.serviceinterface.SynchronizationQueue;
+import de.danoeh.antennapod.storage.preferences.GuardianGate;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
 import org.greenrobot.eventbus.EventBus;
 
@@ -65,6 +66,10 @@ public abstract class FeedDatabaseWriter {
 
         // Look up feed in the feedslist
         final Feed savedFeed = searchFeedByIdentifyingValueOrID(newFeed);
+        if (savedFeed == null && newFeed.getState() != Feed.STATE_NOT_SUBSCRIBED && !GuardianGate.isOpen()) {
+            adapter.close();
+            throw new GuardianGateClosedException(newFeed.getDownloadUrl());
+        }
         if (savedFeed == null) {
             Log.d(TAG, "Found no existing Feed with title "
                             + newFeed.getTitle() + ". Adding as new one.");

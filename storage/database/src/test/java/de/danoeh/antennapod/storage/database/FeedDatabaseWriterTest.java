@@ -10,6 +10,7 @@ import de.danoeh.antennapod.model.feed.FeedMedia;
 import de.danoeh.antennapod.model.feed.SortOrder;
 import de.danoeh.antennapod.net.sync.serviceinterface.SynchronizationQueue;
 import de.danoeh.antennapod.net.sync.serviceinterface.SynchronizationQueueStub;
+import de.danoeh.antennapod.storage.preferences.GuardianGate;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
 import org.junit.Before;
 import org.junit.Test;
@@ -44,6 +45,9 @@ public class FeedDatabaseWriterTest {
         adapter.open();
         adapter.close();
         SynchronizationQueue.setInstance(new SynchronizationQueueStub());
+        GuardianGate.init(context);
+        GuardianGate.setCode("test");
+        GuardianGate.verify("test");
     }
 
     @Test
