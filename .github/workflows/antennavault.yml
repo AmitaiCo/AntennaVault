@@ -1,0 +1,64 @@
+name: AntennaVault APK
+
+on:
+  push:
+    branches: [ guardian-gate ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: "Build FreeDebug APK"
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('**/*.gradle*') }}-${{ hashFiles('**/gradle/wrapper/gradle-wrapper.properties') }}
+      - name: Configure parallel build
+        run: echo "org.gradle.parallel=true" >> local.properties
+      - name: Install stable debug keystore
+        env:
+          DEBUG_KEYSTORE_B64: ${{ secrets.DEBUG_KEYSTORE_B64 }}
+        if: env.DEBUG_KEYSTORE_B64 != ''
+        run: |
+          mkdir -p ~/.android
+          echo "$DEBUG_KEYSTORE_B64" | base64 -d > ~/.android/debug.keystore
+      - name: Build
+        run: ./gradlew :app:assembleFreeDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: antennavault-free-debug.apk
+          path: app/build/outputs/apk/free/debug/app-free-debug.apk
+
+  unit-test:
+    name: "Unit tests"
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('**/*.gradle*') }}-${{ hashFiles('**/gradle/wrapper/gradle-wrapper.properties') }}
+      - name: Configure parallel build
+        run: echo "org.gradle.parallel=true" >> local.properties
+      - name: Test
+        run: ./gradlew testFreeDebugUnitTest testDebugUnitTest
