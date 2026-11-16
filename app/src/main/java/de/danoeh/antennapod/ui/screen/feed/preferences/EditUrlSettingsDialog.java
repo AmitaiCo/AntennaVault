@@ -2,12 +2,14 @@ package de.danoeh.antennapod.ui.screen.feed.preferences;
 
 import android.app.Activity;
 import android.os.CountDownTimer;
+import android.util.Log;
 import android.view.LayoutInflater;
 import androidx.appcompat.app.AlertDialog;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import de.danoeh.antennapod.R;
 import de.danoeh.antennapod.net.download.serviceinterface.FeedUpdateManager;
 import de.danoeh.antennapod.storage.database.DBWriter;
+import de.danoeh.antennapod.storage.preferences.GuardianGateClosedException;
 import de.danoeh.antennapod.databinding.EditTextDialogBinding;
 import de.danoeh.antennapod.model.feed.Feed;
 
@@ -46,10 +48,16 @@ public abstract class EditUrlSettingsDialog {
 
     private void onConfirmed(String original, String updated) {
         try {
-            DBWriter.updateFeedDownloadURL(original, updated).get();
+            DBWriter.changeFeedDownloadUrl(original, updated).get();
             feed.setDownloadUrl(updated);
             FeedUpdateManager.getInstance().runOnce(activityRef.get(), feed);
-        } catch (ExecutionException | InterruptedException e) {
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof GuardianGateClosedException) {
+                Log.w(TAG, e.getCause().getMessage());
+                return;
+            }
+            throw new RuntimeException(e);
+        } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
     }

@@ -795,6 +795,16 @@ public class DBWriter {
     /**
      * Updates download URL of a feed
      */
+    public static Future<?> changeFeedDownloadUrl(final String original, final String updated) {
+        return runOnDbThread(() -> {
+            GuardianGate.requireOpen("change a feed URL to " + updated);
+            PodDBAdapter adapter = PodDBAdapter.getInstance();
+            adapter.open();
+            adapter.setFeedDownloadUrl(original, updated);
+            adapter.close();
+        });
+    }
+
     public static Future<?> updateFeedDownloadURL(final String original, final String updated) {
         Log.d(TAG, "updateFeedDownloadURL(original: " + original + ", updated: " + updated + ")");
         return runOnDbThread(() -> {

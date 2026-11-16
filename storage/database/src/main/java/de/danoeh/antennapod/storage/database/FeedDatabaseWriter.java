@@ -79,13 +79,10 @@ public abstract class FeedDatabaseWriter {
 
         // Look up feed in the feedslist
         final Feed savedFeed = searchFeedByIdentifyingValueOrID(newFeed);
-        if (createsSubscription(savedFeed, newFeed) || mergesForeignFeedIntoSubscription(savedFeed, newFeed)) {
-            try {
-                GuardianGate.requireOpen("subscribe to " + newFeed.getDownloadUrl());
-            } catch (GuardianGateClosedException e) {
-                adapter.close();
-                throw e;
-            }
+        if ((createsSubscription(savedFeed, newFeed) || mergesForeignFeedIntoSubscription(savedFeed, newFeed))
+                && !GuardianGate.isOpen()) {
+            adapter.close();
+            throw new GuardianGateClosedException("subscribe to " + newFeed.getDownloadUrl());
         }
         if (savedFeed == null) {
             Log.d(TAG, "Found no existing Feed with title "

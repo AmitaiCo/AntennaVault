@@ -1,7 +1,7 @@
 # Guardian Gate: implementation plan
 
-Base: AntennaPod `3.12.3` (tag), branch `guardian-gate` in `AmitaiCo/AntennaPod`.
-Original wish list: `~/code/GabAI/groups/dm-with-amitai/reference/antennapod-gated-spec.md`.
+Base: AntennaPod `3.12.3` (tag), branch `guardian-gate` in `AmitaiCo/AntennaVault`.
+Line numbers below refer to 3.12.3 and may have drifted.
 This plan replaces it where they differ (it was written before reading the code).
 
 Goal: adding a NEW podcast needs a code held by a guardian. Existing subscriptions keep
@@ -36,14 +36,14 @@ Checked and found no subscribe path: widget, Echo, Wear OS, Android Auto (Auto o
 ### 2.1 `GuardianGate` (new class)
 Put it in `:storage:preferences` so the DB, sync, UI and import modules can all reach it.
 - Own `SharedPreferences` file: PBKDF2 hash + random salt, open-until timestamp, failed count, lockout-until.
-- `isOpen()`, `verify(code)`, `setCode(code)`, `openFor(minutes)`, `lock()`, `isConfigured()`.
+- `isOpen()`, `verify(code)`, `setCode(code)`, `lock()`, `isConfigured()` (see section 7 for the final API).
 - Correct code opens a window (default 10 min, guardian-configurable), or until the app has been in the background more than 1 min.
 - Five wrong codes, then a lockout of 1, 2, 4... minutes. It survives restarts.
 - No recovery. Clearing app data wipes the gate and the subscriptions together.
 
 ### 2.2 Data-layer gates (the real enforcement, catches every path)
 - `FeedDatabaseWriter.updateFeed`: if `savedFeed == null` and `newFeed.getState() != STATE_NOT_SUBSCRIBED` and the gate is closed, do not insert. Throw a `GuardianGateClosedException` (or return null), and handle it in callers.
-- `DBWriter.setFeedState`: if `oldState == NOT_SUBSCRIBED && newState == SUBSCRIBED` and the gate is closed, refuse.
+- `DBWriter.setFeedState`: if the stored state is `NOT_SUBSCRIBED`, `newState != NOT_SUBSCRIBED` and the gate is closed, refuse.
 - Previews still work (they are `NOT_SUBSCRIBED`). Refreshes of existing feeds still work.
 
 ### 2.3 UI prompts (so the user sees a code dialog instead of a failure)
@@ -56,7 +56,7 @@ One reusable `GuardianCodeDialog` (in `:ui:common` or `:app`): `requestOpen(acti
 
 ### 2.4 Background paths
 - Sync: at `SyncService.java:170`, if closed, skip the remote add and save the URL in a "pending" list (`lastSync` advances at :210, so it would otherwise be lost). Show a notification: "N podcasts from sync are waiting for the guardian code". Approving them opens the gate and runs `updateFeed` on each.
-- Android backup agent: remove `android:backupAgent` from the manifest (simplest), or gate inside `restoreEntity`.
+- Android backup agent: gate inside `restoreEntity` (D5).
 
 ### 2.5 Guardian settings screen
 New XML `ui/preferences/src/main/res/xml/preferences_guardian.xml`, a fragment extending `AnimatedPreferenceFragment`, wired in `preferences.xml`, `PreferenceActivity.getPreferenceScreen/getTitleOfPage`, and `MainPreferencesFragment.setupMainScreen`.
@@ -66,7 +66,7 @@ First run with no code set: show "Hand the phone to your guardian" and set the c
 ### 2.6 Separate app identity (installs next to stock AntennaPod)
 - `app/build.gradle`: add `applicationId "<new id>"`. Keep `namespace`.
 - `provider_authority` resValues (`app/build.gradle:33,36`) plus the fallback in `ui/i18n/.../values/strings.xml:11`.
-- `app_name` resValues (`common.gradle:22,25`), e.g. "AntennaPod Guarded".
+- `app_name` resValues (`common.gradle:22,25`), "AntennaVault" (D1).
 - Remove the Google backup `api_key` meta-data (manifest :66-68).
 - GPL: `MainPreferencesFragment.java:40-64` shows a red "violates the GPL" notice for any other package. Per its own comment: update About / Report-bug to point to our fork, keep the source public (the fork is public), then remove those lines.
 - Build only the `free` flavor (no Wear / Cast / Play services). The Wear app is hard-wired to the stock id.
@@ -84,7 +84,7 @@ First run with no code set: show "Hand the phone to your guardian" and set the c
 - Robolectric unit tests next to `storage/database/src/test/.../FeedDatabaseWriterTest.java`: closed gate blocks a new SUBSCRIBED insert, allows NOT_SUBSCRIBED preview, allows refresh of an existing feed. `setFeedState` preview to subscribed is blocked when closed and works when open.
 - `GuardianGate` tests: hash and verify, lockout growth and persistence, window expiry.
 - `SyncService`: a closed gate queues adds as pending.
-- Manual phone checklist in `GUARDIAN_GATE.md`: every path in section 1, plus "existing podcasts still auto-update while locked".
+- Manual phone checklist (to be written in step 7): every path in section 1, plus "existing podcasts still auto-update while locked".
 
 ## 5. Order of work
 1. Identity rename + GPL notice + build in CI. Get a debug APK onto the phone early.
@@ -106,7 +106,8 @@ First run with no code set: show "Hand the phone to your guardian" and set the c
 ## 7. Implementation notes (after the steps 1-3 review)
 - UI code checks `GuardianGate.isOpen()` and prompts before calling into the database. `GuardianGateClosedException` thrown by `FeedDatabaseWriter.updateFeed`, `DBWriter.setFeedState` and `DatabaseExporter.importBackup` is only a backstop: the Subscribe buttons drop the `Future`, so a refusal there is silent.
 - `isConfigured()` false: route to first-run setup. `isEnabled()` false: the guardian turned the gate off, so `isOpen()` is always true.
-- Changing the code, the window, enabling/disabling, or `removeCodeAndSettings()` all require an open gate (`requireOpen`).
+- Guardian settings (`changeCode`, `setWindowMinutes`, `setEnabled`, `removeCode`) take the code as an argument and check it at the moment of the change; an open subscribe window is not enough. `setInitialCode` only works while no code is set.
+- Editing a feed URL is gated (`DBWriter.changeFeedDownloadUrl`); automatic HTTP redirects during refresh are not.
 - `verify()` and `setCode()` are `@WorkerThread` (PBKDF2). Call them off the main thread.
 - Step 4 wires `onAppBackgrounded()` / `onAppForegrounded()` from `ProcessLifecycleOwner` in `:app`.
 - Tests open the gate with `GuardianGateTestUtil` from `:storage:preferences` test fixtures.

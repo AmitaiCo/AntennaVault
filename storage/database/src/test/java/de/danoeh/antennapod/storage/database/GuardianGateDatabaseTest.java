@@ -71,6 +71,67 @@ public class GuardianGateDatabaseTest {
         GuardianGateTestUtil.resetToUnconfigured(context);
         Feed feed = createFeed("https://example.com/new.xml", Feed.STATE_SUBSCRIBED);
         assertThrows(GuardianGateClosedException.class, () -> FeedDatabaseWriter.updateFeed(context, feed, false));
+        assertTrue(DBReader.getFeedList().isEmpty());
+    }
+
+    @Test
+    public void notConfiguredGateBlocksSubscribingToPreview() {
+        Feed preview = FeedDatabaseWriter.updateFeed(context,
+                createFeed("https://example.com/preview.xml", Feed.STATE_NOT_SUBSCRIBED), false);
+        GuardianGateTestUtil.resetToUnconfigured(context);
+
+        ExecutionException e = assertThrows(ExecutionException.class,
+                () -> DBWriter.setFeedState(context, preview, Feed.STATE_SUBSCRIBED).get());
+        assertTrue(e.getCause() instanceof GuardianGateClosedException);
+    }
+
+    @Test
+    public void disabledGateAllowsSubscribing() throws Exception {
+        assertEquals(GuardianGate.Result.ACCEPTED, GuardianGate.setEnabled(GuardianGateTestUtil.CODE, false));
+        Feed added = FeedDatabaseWriter.updateFeed(context,
+                createFeed("https://example.com/new.xml", Feed.STATE_SUBSCRIBED), false);
+        Feed preview = FeedDatabaseWriter.updateFeed(context,
+                createFeed("https://example.com/preview.xml", Feed.STATE_NOT_SUBSCRIBED), false);
+
+        DBWriter.setFeedState(context, preview, Feed.STATE_SUBSCRIBED).get();
+        assertEquals(Feed.STATE_SUBSCRIBED, DBReader.getFeed(added.getId(), false, 0, 0).getState());
+        assertEquals(Feed.STATE_SUBSCRIBED, DBReader.getFeed(preview.getId(), false, 0, 0).getState());
+    }
+
+    @Test
+    public void closedGateBlocksChangingFeedUrl() {
+        open();
+        String url = "https://example.com/feed.xml";
+        Feed feed = FeedDatabaseWriter.updateFeed(context, createFeed(url, Feed.STATE_SUBSCRIBED), false);
+        GuardianGate.lock();
+
+        ExecutionException e = assertThrows(ExecutionException.class,
+                () -> DBWriter.changeFeedDownloadUrl(url, "https://other.example/feed.xml").get());
+        assertTrue(e.getCause() instanceof GuardianGateClosedException);
+        assertEquals(url, DBReader.getFeed(feed.getId(), false, 0, 0).getDownloadUrl());
+    }
+
+    @Test
+    public void openGateAllowsChangingFeedUrl() throws Exception {
+        open();
+        String url = "https://example.com/feed.xml";
+        String newUrl = "https://example.org/feed.xml";
+        Feed feed = FeedDatabaseWriter.updateFeed(context, createFeed(url, Feed.STATE_SUBSCRIBED), false);
+
+        DBWriter.changeFeedDownloadUrl(url, newUrl).get();
+        assertEquals(newUrl, DBReader.getFeed(feed.getId(), false, 0, 0).getDownloadUrl());
+    }
+
+    @Test
+    public void closedGateAllowsRedirectUpdates() throws Exception {
+        open();
+        String url = "https://example.com/feed.xml";
+        String redirected = "https://cdn.example.com/feed.xml";
+        Feed feed = FeedDatabaseWriter.updateFeed(context, createFeed(url, Feed.STATE_SUBSCRIBED), false);
+        GuardianGate.lock();
+
+        DBWriter.updateFeedDownloadURL(url, redirected).get();
+        assertEquals(redirected, DBReader.getFeed(feed.getId(), false, 0, 0).getDownloadUrl());
     }
 
     @Test
@@ -239,7 +300,7 @@ public class GuardianGateDatabaseTest {
     }
 
     private static void open() {
-        assertEquals(GuardianGate.Result.OPENED, GuardianGate.verify(GuardianGateTestUtil.CODE));
+        GuardianGateTestUtil.open();
     }
 
     private static Feed createFeed(String url, int state) {

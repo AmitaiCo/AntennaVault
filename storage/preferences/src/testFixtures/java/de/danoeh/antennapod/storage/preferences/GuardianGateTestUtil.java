@@ -9,17 +9,27 @@ public final class GuardianGateTestUtil {
     }
 
     public static void resetToUnconfigured(Context context) {
+        context.getApplicationContext()
+                .getSharedPreferences(GuardianGate.PREF_NAME, Context.MODE_PRIVATE)
+                .edit().clear().apply();
+        GuardianGate.setClock(System::currentTimeMillis);
         GuardianGate.init(context);
-        GuardianGate.resetForTesting();
     }
 
     public static void configureClosed(Context context) {
         resetToUnconfigured(context);
-        GuardianGate.setCode(CODE);
+        GuardianGate.setInitialCode(CODE);
     }
 
     public static void configureOpen(Context context) {
         configureClosed(context);
-        GuardianGate.verify(CODE);
+        open();
+    }
+
+    public static void open() {
+        GuardianGate.Result result = GuardianGate.verify(CODE);
+        if (result != GuardianGate.Result.ACCEPTED) {
+            throw new IllegalStateException("Could not open guardian gate: " + result);
+        }
     }
 }
