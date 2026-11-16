@@ -107,13 +107,14 @@ public class GuardianPreferencesFragment extends AnimatedPreferenceFragment {
     }
 
     private void refresh() {
-        boolean configured = GuardianGate.isConfigured();
-        boolean enabled = GuardianGate.isEnabled();
         findPreference(PREF_STATUS).setSummary(statusText());
         Map<String, String> pending = GuardianPendingFeeds.getAll();
         Preference pendingPreference = findPreference(PREF_PENDING);
         pendingPreference.setVisible(!pending.isEmpty());
         pendingPreference.setSummary(TextUtils.join(", ", pendingLabels(pending)));
+
+        boolean configured = GuardianGate.isConfigured();
+        boolean enabled = GuardianGate.isEnabled();
         findPreference(PREF_SET_CODE).setVisible(!configured);
         findPreference(PREF_LOCK_NOW).setVisible(enabled && GuardianGate.isOpen());
         findPreference(PREF_CHANGE_CODE).setVisible(configured);
