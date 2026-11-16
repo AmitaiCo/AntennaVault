@@ -7,7 +7,6 @@ import android.net.Uri;
 
 import androidx.lifecycle.Lifecycle;
 import androidx.test.core.app.ActivityScenario;
-import androidx.test.espresso.Espresso;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 
@@ -40,6 +39,7 @@ import java.util.concurrent.TimeUnit;
 
 import static androidx.test.espresso.Espresso.onView;
 import static androidx.test.espresso.action.ViewActions.click;
+import static androidx.test.espresso.action.ViewActions.pressImeActionButton;
 import static androidx.test.espresso.action.ViewActions.replaceText;
 import static androidx.test.espresso.assertion.ViewAssertions.doesNotExist;
 import static androidx.test.espresso.contrib.RecyclerViewActions.actionOnItemAtPosition;
@@ -110,10 +110,8 @@ public class GuardianGateFlowsTest {
         waitForViewGlobally(withText(R.string.guardian_code_title), TIMEOUT);
     }
 
-    private void typeCode(String code, int button) {
-        onView(withId(R.id.textInput)).perform(replaceText(code));
-        Espresso.closeSoftKeyboard();
-        onView(withText(button)).perform(click());
+    private void typeCode(String code) {
+        onView(withId(R.id.textInput)).perform(replaceText(code), pressImeActionButton());
     }
 
     private Feed subscribedFeedWithPreview() throws Exception {
@@ -142,7 +140,7 @@ public class GuardianGateFlowsTest {
 
         waitForCodePrompt();
         onView(withText(R.string.subscribe_label)).check(doesNotExist());
-        typeCode(GuardianGateTestUtil.CODE, R.string.guardian_unlock);
+        typeCode(GuardianGateTestUtil.CODE);
         waitForViewGlobally(withText(R.string.subscribe_label), TIMEOUT);
     }
 
@@ -163,8 +161,10 @@ public class GuardianGateFlowsTest {
         launchMain(openFeed(preview.getId()));
 
         waitForViewGlobally(allOf(withId(R.id.recyclerView), isDisplayed(), hasMinimumChildCount(1)), TIMEOUT);
-        onView(allOf(withId(R.id.recyclerView), isDisplayed()))
-                .perform(actionOnItemAtPosition(0, clickChildViewWithId(R.id.secondaryActionButton)));
+        onView(allOf(withId(R.id.recyclerView), isDisplayed())).perform(actionOnItemAtPosition(0, click()));
+        waitForViewGlobally(allOf(withId(R.id.butAction1Text), withText(R.string.stream_label)), TIMEOUT);
+        onView(allOf(withId(R.id.butAction1), isDisplayed())).perform(click());
+
         waitForCodePrompt();
         onView(withText(R.string.cancel_label)).perform(click());
         assertFalse(GuardianGate.isOpen());
@@ -190,12 +190,12 @@ public class GuardianGateFlowsTest {
 
         String lockoutPrefix = context.getString(R.string.guardian_locked_out, "#").split("#")[0];
         for (int i = 0; i < 4; i++) {
-            typeCode(WRONG_CODE, R.string.guardian_unlock);
+            typeCode(WRONG_CODE);
             waitForViewGlobally(withText(R.string.guardian_wrong_code), TIMEOUT);
         }
-        typeCode(WRONG_CODE, R.string.guardian_unlock);
+        typeCode(WRONG_CODE);
         waitForViewGlobally(withText(startsWith(lockoutPrefix)), TIMEOUT);
-        typeCode(GuardianGateTestUtil.CODE, R.string.guardian_unlock);
+        typeCode(GuardianGateTestUtil.CODE);
         waitForViewGlobally(withText(startsWith(lockoutPrefix)), TIMEOUT);
         assertFalse(GuardianGate.isOpen());
     }
@@ -236,7 +236,7 @@ public class GuardianGateFlowsTest {
 
         waitForViewGlobally(withId(R.id.butShowInfo), TIMEOUT);
         onView(withId(R.id.butShowInfo)).perform(click());
-        waitForViewGlobally(withId(R.id.urlLabel), TIMEOUT);
+        waitForViewGlobally(withId(R.id.infoContainer), TIMEOUT);
         onView(actionBarOverflow()).perform(click());
         onView(withText(R.string.edit_url_menu)).perform(click());
         waitForCodePrompt();
@@ -253,7 +253,7 @@ public class GuardianGateFlowsTest {
         clickPreference(R.string.guardian_pending_title);
         onView(withText(R.string.guardian_pending_approve)).perform(click());
         waitForCodePrompt();
-        typeCode(GuardianGateTestUtil.CODE, R.string.confirm_label);
+        typeCode(GuardianGateTestUtil.CODE);
 
         Awaitility.await().atMost(TIMEOUT, TimeUnit.MILLISECONDS)
                 .until(() -> DBReader.getFeedList().size() == 1);
@@ -271,7 +271,7 @@ public class GuardianGateFlowsTest {
         clickPreference(R.string.guardian_pending_title);
         onView(withText(R.string.guardian_pending_reject)).perform(click());
         waitForCodePrompt();
-        typeCode(GuardianGateTestUtil.CODE, R.string.confirm_label);
+        typeCode(GuardianGateTestUtil.CODE);
 
         Awaitility.await().atMost(TIMEOUT, TimeUnit.MILLISECONDS)
                 .until(() -> GuardianPendingFeeds.count() == 0);
@@ -329,7 +329,7 @@ public class GuardianGateFlowsTest {
         waitForCodePrompt();
         assertFalse(GuardianGate.isOpen());
 
-        typeCode(GuardianGateTestUtil.CODE, R.string.guardian_unlock);
+        typeCode(GuardianGateTestUtil.CODE);
         waitForViewGlobally(withId(R.id.addViaUrlButton), TIMEOUT);
         assertTrue(GuardianGate.isOpen());
     }
