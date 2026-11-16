@@ -97,8 +97,8 @@ First run with no code set: show "Hand the phone to your guardian" and set the c
 
 ## 6. Decisions for the owner
 - D1. DECIDED (11-15): app name **AntennaVault**. App id: `io.github.amitaitto.antennavault` (proposed, not yet confirmed).
-- D2. OPEN. Sync adds while locked: queue as pending for approval (recommended), or drop them.
-- D3. OPEN. Links from outside (browser, share): show the preview and gate only Subscribe (recommended), or ask for the code before showing anything.
+- D2. DECIDED: sync adds while locked are held as pending, approved with the code.
+- D3. OPEN, leaning "code before showing anything". Preview episodes are playable without subscribing (ItemFragment / FeedItemlistFragment only show a "not subscribed" label), so "show page, gate Subscribe" would let links be used to listen to anything. If chosen: gate `OnlineFeedViewActivity` before it loads the feed, and also block playback of `STATE_NOT_SUBSCRIBED` feeds when the gate is closed (covers a preview left over from an earlier open window).
 - D4. DECIDED: do not gate unsubscribing.
 - D5. DECIDED: keep Android cloud backup, but restoring needs the code (gate `OpmlBackupAgent.restoreEntity`; it has no UI, so when locked, hold the restored feeds as pending like D2).
 - D6. DECIDED: build in GitHub Actions. The fork is public, so Actions minutes are free. Actions must be enabled on the fork (off by default for forks).
