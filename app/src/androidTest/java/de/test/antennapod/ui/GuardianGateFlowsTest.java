@@ -28,7 +28,9 @@ import de.test.antennapod.EspressoTestUtils;
 import org.awaitility.Awaitility;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 
 import java.io.File;
@@ -59,6 +61,9 @@ public class GuardianGateFlowsTest {
     private static final long TIMEOUT = 15000;
     private static final String WRONG_CODE = "not-the-code";
 
+    @Rule
+    public Timeout timeout = Timeout.seconds(120);
+
     private Context context;
     private UITestUtils uiTestUtils;
     private ActivityScenario<?> scenario;
@@ -88,6 +93,11 @@ public class GuardianGateFlowsTest {
         ActivityScenario<MainActivity> mainScenario = ActivityScenario.launch(intent);
         scenario = mainScenario;
         return mainScenario;
+    }
+
+    private Intent openFeed(long feedId) {
+        return new Intent(context, MainActivity.class)
+                .putExtras(new MainActivityStarter(context).withOpenFeed(feedId).getIntent());
     }
 
     private Intent subscriptionsScreen() {
@@ -146,7 +156,7 @@ public class GuardianGateFlowsTest {
     @Test
     public void streamingPreviewEpisodeAsksForCode() throws Exception {
         Feed preview = subscribedFeedWithPreview();
-        launchMain(new MainActivityStarter(context).withOpenFeed(preview.getId()).getIntent());
+        launchMain(openFeed(preview.getId()));
 
         waitForViewGlobally(allOf(withId(R.id.recyclerView), isDisplayed(), hasMinimumChildCount(1)), TIMEOUT);
         onView(allOf(withId(R.id.recyclerView), isDisplayed()))
@@ -160,7 +170,7 @@ public class GuardianGateFlowsTest {
     public void streamingSubscribedEpisodeDoesNotAskForCode() throws Exception {
         uiTestUtils.addLocalFeedData(false);
         Feed subscribed = uiTestUtils.hostedFeeds.get(1);
-        launchMain(new MainActivityStarter(context).withOpenFeed(subscribed.getId()).getIntent());
+        launchMain(openFeed(subscribed.getId()));
 
         waitForViewGlobally(allOf(withId(R.id.recyclerView), isDisplayed(), hasMinimumChildCount(1)), TIMEOUT);
         onView(allOf(withId(R.id.recyclerView), isDisplayed()))
@@ -218,7 +228,7 @@ public class GuardianGateFlowsTest {
     public void editingFeedUrlAsksForCode() throws Exception {
         uiTestUtils.addLocalFeedData(false);
         Feed feed = uiTestUtils.hostedFeeds.get(0);
-        launchMain(new MainActivityStarter(context).withOpenFeed(feed.getId()).getIntent());
+        launchMain(openFeed(feed.getId()));
 
         waitForViewGlobally(withId(R.id.butShowInfo), TIMEOUT);
         onView(withId(R.id.butShowInfo)).perform(click());
@@ -305,19 +315,18 @@ public class GuardianGateFlowsTest {
     }
 
     @Test
-    public void rotatingWithThePromptOpenKeepsTheGateClosedAndWorking() {
+    public void rotatingWithThePromptOpenKeepsThePromptWorking() {
         ActivityScenario<MainActivity> mainScenario = launchMain(subscriptionsScreen());
         onView(withId(R.id.subscriptions_add)).perform(click());
         waitForCodePrompt();
 
         mainScenario.onActivity(activity ->
                 activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE));
-        waitForViewGlobally(withId(R.id.subscriptions_add), TIMEOUT);
+        waitForCodePrompt();
         assertFalse(GuardianGate.isOpen());
 
-        onView(withId(R.id.subscriptions_add)).perform(click());
-        waitForCodePrompt();
         typeCode(GuardianGateTestUtil.CODE, R.string.guardian_unlock);
         waitForViewGlobally(withId(R.id.addViaUrlButton), TIMEOUT);
+        assertTrue(GuardianGate.isOpen());
     }
 }
