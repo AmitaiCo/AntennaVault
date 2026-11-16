@@ -9,11 +9,12 @@ public final class GuardianGateTestUtil {
     }
 
     public static void resetToUnconfigured(Context context) {
-        context.getApplicationContext()
-                .getSharedPreferences(GuardianGate.PREF_NAME, Context.MODE_PRIVATE)
-                .edit().clear().apply();
+        for (String name : new String[] {GuardianGate.PREF_NAME, GuardianPendingFeeds.PREF_NAME}) {
+            context.getApplicationContext().getSharedPreferences(name, Context.MODE_PRIVATE).edit().clear().apply();
+        }
         GuardianGate.setClock(System::currentTimeMillis);
         GuardianGate.init(context);
+        GuardianPendingFeeds.init(context);
     }
 
     public static void configureClosed(Context context) {

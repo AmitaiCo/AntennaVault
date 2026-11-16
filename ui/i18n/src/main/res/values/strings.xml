@@ -666,6 +666,14 @@
     <string name="guardian_first_run_message">Hand the phone to your guardian. They choose a code that is needed to add new podcasts. Podcasts you already follow keep working without it.</string>
     <string name="guardian_set_up">Set up</string>
     <string name="guardian_later">Later</string>
+    <string name="guardian_pending_notification_title">Podcasts waiting for the guardian</string>
+    <string name="guardian_pending_title">Waiting for approval</string>
+    <string name="guardian_pending_approve_all">Approve all</string>
+    <string name="guardian_pending_reject_all">Reject all</string>
+    <plurals name="guardian_pending_notification_text">
+        <item quantity="one">%d podcast from sync or backup is waiting for approval in Settings → Guardian.</item>
+        <item quantity="other">%d podcasts from sync or backup are waiting for approval in Settings → Guardian.</item>
+    </plurals>
     <plurals name="guardian_window_minutes">
         <item quantity="one">%d minute</item>
         <item quantity="other">%d minutes</item>

@@ -9,6 +9,11 @@
             android:persistent="false" />
 
     <Preference
+            android:key="guardianPending"
+            android:title="@string/guardian_pending_title"
+            android:persistent="false" />
+
+    <Preference
             android:key="guardianSetCode"
             android:title="@string/guardian_set_code_title"
             android:summary="@string/guardian_set_code_summary"

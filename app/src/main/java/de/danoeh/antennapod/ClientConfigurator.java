@@ -10,6 +10,7 @@ import de.danoeh.antennapod.net.download.serviceinterface.FeedUpdateManager;
 import de.danoeh.antennapod.net.sync.service.SynchronizationQueueImpl;
 import de.danoeh.antennapod.net.sync.serviceinterface.SynchronizationQueue;
 import de.danoeh.antennapod.storage.preferences.GuardianGate;
+import de.danoeh.antennapod.storage.preferences.GuardianPendingFeeds;
 import de.danoeh.antennapod.storage.preferences.SynchronizationSettings;
 import de.danoeh.antennapod.storage.preferences.SynchronizationCredentials;
 import de.danoeh.antennapod.storage.preferences.PlaybackPreferences;
@@ -45,6 +46,7 @@ public class ClientConfigurator {
         SynchronizationCredentials.init(context);
         SynchronizationSettings.init(context);
         GuardianGate.init(context);
+        GuardianPendingFeeds.init(context);
         UsageStatistics.init(context);
         PlaybackPreferences.init(context);
         SslProviderInstaller.install(context);

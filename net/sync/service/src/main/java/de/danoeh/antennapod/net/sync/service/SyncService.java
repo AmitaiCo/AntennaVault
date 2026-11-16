@@ -37,17 +37,17 @@ import de.danoeh.antennapod.net.sync.serviceinterface.SynchronizationProvider;
 import de.danoeh.antennapod.net.sync.serviceinterface.UploadChangesResponse;
 import de.danoeh.antennapod.storage.database.DBReader;
 import de.danoeh.antennapod.storage.database.DBWriter;
-import de.danoeh.antennapod.storage.database.FeedDatabaseWriter;
+import de.danoeh.antennapod.storage.database.PendingSubscriptions;
 import de.danoeh.antennapod.storage.database.LongList;
 import de.danoeh.antennapod.storage.preferences.SynchronizationCredentials;
 import de.danoeh.antennapod.storage.preferences.SynchronizationSettings;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
+import de.danoeh.antennapod.ui.notifications.GuardianPendingNotification;
 import de.danoeh.antennapod.ui.notifications.NotificationUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.greenrobot.eventbus.EventBus;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -152,6 +152,7 @@ public class SyncService extends Worker {
         List<String> queuedAddedFeeds = synchronizationQueueStorage.getQueuedAddedFeeds();
 
         Log.d(TAG, "Downloaded subscription changes: " + subscriptionChanges);
+        int heldFeeds = 0;
         for (String downloadUrl : subscriptionChanges.getAdded()) {
             if (!downloadUrl.startsWith("http")) { // Also matches https
                 Log.d(TAG, "Skipping url: " + downloadUrl);
@@ -167,10 +168,11 @@ public class SyncService extends Worker {
                 continue;
             }
 
-            Feed feed = new Feed(downloadUrl, null, "Unknown podcast");
-            feed.setItems(Collections.emptyList());
-            FeedDatabaseWriter.updateFeed(getApplicationContext(), feed, false);
+            if (!PendingSubscriptions.subscribeOrHold(getApplicationContext(), downloadUrl, null)) {
+                heldFeeds++;
+            }
         }
+        GuardianPendingNotification.show(getApplicationContext(), heldFeeds);
 
         // remove subscription if not just subscribed (again)
         for (String downloadUrl : subscriptionChanges.getRemoved()) {

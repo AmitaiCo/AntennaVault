@@ -9,8 +9,8 @@ import android.os.ParcelFileDescriptor;
 import android.util.Log;
 
 import de.danoeh.antennapod.net.download.serviceinterface.FeedUpdateManager;
-import de.danoeh.antennapod.storage.database.FeedDatabaseWriter;
-import de.danoeh.antennapod.storage.preferences.GuardianGateClosedException;
+import de.danoeh.antennapod.storage.database.PendingSubscriptions;
+import de.danoeh.antennapod.ui.notifications.GuardianPendingNotification;
 import org.apache.commons.io.IOUtils;
 import org.xmlpull.v1.XmlPullParserException;
 
@@ -30,9 +30,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 
-import de.danoeh.antennapod.model.feed.Feed;
 import de.danoeh.antennapod.storage.database.DBReader;
 
 public class OpmlBackupAgent extends BackupAgentHelper {
@@ -141,15 +139,13 @@ public class OpmlBackupAgent extends BackupAgentHelper {
             try {
                 ArrayList<OpmlElement> opmlElements = new OpmlReader().readDocument(reader);
                 mChecksum = digester == null ? null : digester.digest();
+                int heldFeeds = 0;
                 for (OpmlElement opmlElem : opmlElements) {
-                    Feed feed = new Feed(opmlElem.getXmlUrl(), null, opmlElem.getText());
-                    feed.setItems(Collections.emptyList());
-                    try {
-                        FeedDatabaseWriter.updateFeed(mContext, feed, false);
-                    } catch (GuardianGateClosedException e) {
-                        Log.w(TAG, e.getMessage());
+                    if (!PendingSubscriptions.subscribeOrHold(mContext, opmlElem.getXmlUrl(), opmlElem.getText())) {
+                        heldFeeds++;
                     }
                 }
+                GuardianPendingNotification.show(mContext, heldFeeds);
                 FeedUpdateManager.getInstance().runOnce(mContext);
             } catch (XmlPullParserException e) {
                 Log.e(TAG, "Error while parsing the OPML file", e);
