@@ -1,6 +1,6 @@
 # Guardian Gate: implementation plan
 
-Base: AntennaPod `3.12.3` (tag), branch `guardian-gate` in `Amitai-TTO/AntennaPod`.
+Base: AntennaPod `3.12.3` (tag), branch `guardian-gate` in `AmitaiCo/AntennaPod`.
 Original wish list: `~/code/GabAI/groups/dm-with-amitai/reference/antennapod-gated-spec.md`.
 This plan replaces it where they differ (it was written before reading the code).
 
