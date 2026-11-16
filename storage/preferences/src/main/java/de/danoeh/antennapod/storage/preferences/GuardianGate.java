@@ -6,6 +6,7 @@ import android.util.Base64;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
+import androidx.annotation.WorkerThread;
 
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
@@ -17,7 +18,7 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
 public class GuardianGate {
-    public enum Result { OPENED, WRONG_CODE, LOCKED_OUT }
+    public enum Result { OPENED, WRONG_CODE, LOCKED_OUT, NOT_CONFIGURED }
 
     public static final int DEFAULT_WINDOW_MINUTES = 10;
     public static final int ATTEMPTS_BEFORE_LOCKOUT = 5;
@@ -44,7 +45,7 @@ public class GuardianGate {
     private static LongSupplier clock = System::currentTimeMillis;
 
     public static void init(Context context) {
-        prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        prefs = context.getApplicationContext().getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
     }
 
     @VisibleForTesting
@@ -52,18 +53,26 @@ public class GuardianGate {
         clock = newClock;
     }
 
-    public static boolean isConfigured() {
-        return prefs.getString(KEY_HASH, null) != null;
+    private static SharedPreferences prefs() {
+        if (prefs == null) {
+            throw new IllegalStateException("GuardianGate.init() has not been called");
+        }
+        return prefs;
     }
 
-    public static void setCode(@NonNull String code) {
+    public static boolean isConfigured() {
+        return prefs().getString(KEY_HASH, null) != null;
+    }
+
+    @WorkerThread
+    public static synchronized void setCode(@NonNull String code) {
         if (code.isEmpty()) {
             throw new IllegalArgumentException("Code must not be empty");
         }
         byte[] salt = new byte[SALT_BYTES];
         new SecureRandom().nextBytes(salt);
         byte[] hash = hash(code, salt, ITERATIONS);
-        prefs.edit()
+        prefs().edit()
                 .putString(KEY_SALT, Base64.encodeToString(salt, Base64.NO_WRAP))
                 .putString(KEY_HASH, Base64.encodeToString(hash, Base64.NO_WRAP))
                 .putInt(KEY_ITERATIONS, ITERATIONS)
@@ -72,38 +81,44 @@ public class GuardianGate {
                 .commit();
     }
 
-    public static void clearCode() {
-        prefs.edit().clear().commit();
+    public static synchronized void clearCode() {
+        prefs().edit().clear().commit();
     }
 
     public static boolean isOpen() {
-        if (!isConfigured()) {
+        if (prefs == null || !isConfigured()) {
             return false;
         }
         long now = clock.getAsLong();
         long openedAt = prefs.getLong(KEY_OPENED_AT, 0);
         long openUntil = prefs.getLong(KEY_OPEN_UNTIL, 0);
-        return now >= openedAt && now < openUntil;
+        return now >= openedAt && now < openUntil && !backgroundedTooLong(now);
+    }
+
+    private static boolean backgroundedTooLong(long now) {
+        long since = prefs().getLong(KEY_BACKGROUND_SINCE, 0);
+        return since != 0 && now - since > BACKGROUND_GRACE_MILLIS;
     }
 
     @NonNull
-    public static Result verify(@NonNull String code) {
+    @WorkerThread
+    public static synchronized Result verify(@NonNull String code) {
         if (!isConfigured()) {
-            return Result.WRONG_CODE;
+            return Result.NOT_CONFIGURED;
         }
         if (getLockoutRemainingMillis() > 0) {
             return Result.LOCKED_OUT;
         }
-        byte[] salt = Base64.decode(prefs.getString(KEY_SALT, ""), Base64.NO_WRAP);
-        byte[] expected = Base64.decode(prefs.getString(KEY_HASH, ""), Base64.NO_WRAP);
-        int iterations = prefs.getInt(KEY_ITERATIONS, ITERATIONS);
+        byte[] salt = Base64.decode(prefs().getString(KEY_SALT, ""), Base64.NO_WRAP);
+        byte[] expected = Base64.decode(prefs().getString(KEY_HASH, ""), Base64.NO_WRAP);
+        int iterations = prefs().getInt(KEY_ITERATIONS, ITERATIONS);
         if (MessageDigest.isEqual(expected, hash(code, salt, iterations))) {
-            prefs.edit().putInt(KEY_FAILED_COUNT, 0).putLong(KEY_LOCKOUT_UNTIL, 0).commit();
+            prefs().edit().putInt(KEY_FAILED_COUNT, 0).putLong(KEY_LOCKOUT_UNTIL, 0).commit();
             openFor(getWindowMinutes());
             return Result.OPENED;
         }
-        int failed = prefs.getInt(KEY_FAILED_COUNT, 0) + 1;
-        SharedPreferences.Editor editor = prefs.edit().putInt(KEY_FAILED_COUNT, failed);
+        int failed = prefs().getInt(KEY_FAILED_COUNT, 0) + 1;
+        SharedPreferences.Editor editor = prefs().edit().putInt(KEY_FAILED_COUNT, failed);
         if (failed % ATTEMPTS_BEFORE_LOCKOUT == 0) {
             int round = failed / ATTEMPTS_BEFORE_LOCKOUT;
             long minutes = Math.min(1L << Math.min(round - 1, 20), MAX_LOCKOUT_MINUTES);
@@ -114,47 +129,53 @@ public class GuardianGate {
     }
 
     public static long getLockoutRemainingMillis() {
-        return Math.max(0, prefs.getLong(KEY_LOCKOUT_UNTIL, 0) - clock.getAsLong());
+        return Math.max(0, prefs().getLong(KEY_LOCKOUT_UNTIL, 0) - clock.getAsLong());
     }
 
     public static int getFailedAttempts() {
-        return prefs.getInt(KEY_FAILED_COUNT, 0);
+        return prefs().getInt(KEY_FAILED_COUNT, 0);
     }
 
-    public static void openFor(int minutes) {
+    public static synchronized void openFor(int minutes) {
         long now = clock.getAsLong();
-        prefs.edit()
+        prefs().edit()
                 .putLong(KEY_OPENED_AT, now)
                 .putLong(KEY_OPEN_UNTIL, now + TimeUnit.MINUTES.toMillis(minutes))
                 .putLong(KEY_BACKGROUND_SINCE, 0)
                 .commit();
     }
 
-    public static void lock() {
-        prefs.edit().putLong(KEY_OPENED_AT, 0).putLong(KEY_OPEN_UNTIL, 0).commit();
+    public static synchronized void lock() {
+        prefs().edit()
+                .putLong(KEY_OPENED_AT, 0)
+                .putLong(KEY_OPEN_UNTIL, 0)
+                .putLong(KEY_BACKGROUND_SINCE, 0)
+                .commit();
     }
 
     public static int getWindowMinutes() {
-        return prefs.getInt(KEY_WINDOW_MINUTES, DEFAULT_WINDOW_MINUTES);
+        return prefs().getInt(KEY_WINDOW_MINUTES, DEFAULT_WINDOW_MINUTES);
     }
 
-    public static void setWindowMinutes(int minutes) {
+    public static synchronized void setWindowMinutes(int minutes) {
         if (minutes < 1) {
             throw new IllegalArgumentException("Window must be at least one minute");
         }
-        prefs.edit().putInt(KEY_WINDOW_MINUTES, minutes).commit();
+        prefs().edit().putInt(KEY_WINDOW_MINUTES, minutes).commit();
     }
 
-    public static void onAppBackgrounded() {
-        prefs.edit().putLong(KEY_BACKGROUND_SINCE, clock.getAsLong()).commit();
-    }
-
-    public static void onAppForegrounded() {
-        long since = prefs.getLong(KEY_BACKGROUND_SINCE, 0);
-        if (since != 0 && clock.getAsLong() - since > BACKGROUND_GRACE_MILLIS) {
-            lock();
+    public static synchronized void onAppBackgrounded() {
+        if (isOpen()) {
+            prefs().edit().putLong(KEY_BACKGROUND_SINCE, clock.getAsLong()).apply();
         }
-        prefs.edit().putLong(KEY_BACKGROUND_SINCE, 0).commit();
+    }
+
+    public static synchronized void onAppForegrounded() {
+        if (backgroundedTooLong(clock.getAsLong())) {
+            lock();
+        } else if (prefs().getLong(KEY_BACKGROUND_SINCE, 0) != 0) {
+            prefs().edit().putLong(KEY_BACKGROUND_SINCE, 0).apply();
+        }
     }
 
     private static byte[] hash(String code, byte[] salt, int iterations) {

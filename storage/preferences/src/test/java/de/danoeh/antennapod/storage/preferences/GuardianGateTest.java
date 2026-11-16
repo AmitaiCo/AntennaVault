@@ -48,7 +48,7 @@ public class GuardianGateTest {
     public void notConfiguredIsClosed() {
         assertFalse(GuardianGate.isConfigured());
         assertFalse(GuardianGate.isOpen());
-        assertEquals(GuardianGate.Result.WRONG_CODE, GuardianGate.verify(CODE));
+        assertEquals(GuardianGate.Result.NOT_CONFIGURED, GuardianGate.verify(CODE));
     }
 
     @Test
@@ -140,6 +140,24 @@ public class GuardianGateTest {
         now += GuardianGate.BACKGROUND_GRACE_MILLIS + 1;
         GuardianGate.onAppForegrounded();
         assertFalse(GuardianGate.isOpen());
+    }
+
+    @Test
+    public void longBackgroundClosesBeforeForegroundCallback() {
+        GuardianGate.setCode(CODE);
+        GuardianGate.verify(CODE);
+        GuardianGate.onAppBackgrounded();
+        now += GuardianGate.BACKGROUND_GRACE_MILLIS + 1;
+        assertFalse(GuardianGate.isOpen());
+    }
+
+    @Test
+    public void backgroundWhileClosedDoesNotAffectNextOpen() {
+        GuardianGate.setCode(CODE);
+        GuardianGate.onAppBackgrounded();
+        advanceMinutes(5);
+        GuardianGate.verify(CODE);
+        assertTrue(GuardianGate.isOpen());
     }
 
     @Test

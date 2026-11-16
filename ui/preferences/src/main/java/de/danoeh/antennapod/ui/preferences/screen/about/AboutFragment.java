@@ -15,6 +15,8 @@ import de.danoeh.antennapod.ui.preferences.R;
 import de.danoeh.antennapod.ui.preferences.screen.AnimatedPreferenceFragment;
 
 public class AboutFragment extends AnimatedPreferenceFragment {
+    private static final String SOURCE_URL = "https://github.com/AmitaiCo/AntennaPod";
+
 
     @Override
     public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
@@ -44,8 +46,10 @@ public class AboutFragment extends AnimatedPreferenceFragment {
             }
             return true;
         });
+        findPreference("about_source").setSummary(getString(R.string.about_source_summary,
+                getString(R.string.app_name), SOURCE_URL));
         findPreference("about_source").setOnPreferenceClickListener((preference) -> {
-            IntentUtils.openInBrowser(getContext(), "https://github.com/AmitaiCo/AntennaPod");
+            IntentUtils.openInBrowser(getContext(), SOURCE_URL);
             return true;
         });
         findPreference("about_contributors").setOnPreferenceClickListener((preference) -> {

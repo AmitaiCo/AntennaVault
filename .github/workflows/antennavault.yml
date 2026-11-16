@@ -60,7 +60,31 @@ jobs:
           key: gradle-${{ hashFiles('**/*.gradle*') }}-${{ hashFiles('**/gradle/wrapper/gradle-wrapper.properties') }}
       - name: Configure parallel build
         run: echo "org.gradle.parallel=true" >> local.properties
-      - name: Checkstyle
-        run: ./gradlew checkstyle
       - name: Test
         run: ./gradlew testFreeDebugUnitTest testDebugUnitTest
+
+  static-analysis:
+    name: "Checkstyle and lint"
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('**/*.gradle*') }}-${{ hashFiles('**/gradle/wrapper/gradle-wrapper.properties') }}
+      - name: Configure parallel build
+        run: echo "org.gradle.parallel=true" >> local.properties
+      - name: Checkstyle and lint
+        run: ./gradlew checkstyle lint
+      - name: Readable lint errors
+        if: failure()
+        run: python .github/workflows/errorPrinter.py

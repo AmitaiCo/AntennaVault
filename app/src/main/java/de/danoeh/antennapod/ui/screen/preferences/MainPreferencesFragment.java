@@ -77,10 +77,7 @@ public class MainPreferencesFragment extends AnimatedPreferenceFragment {
             IntentUtils.openInBrowser(getContext(), "https://antennapod.org/documentation/");
             return true;
         });
-        findPreference(PREF_VIEW_FORUM).setOnPreferenceClickListener(preference -> {
-            IntentUtils.openInBrowser(getContext(), "https://forum.antennapod.org/");
-            return true;
-        });
+        findPreference(PREF_VIEW_FORUM).setVisible(false);
         findPreference(PREF_CONTRIBUTE).setOnPreferenceClickListener(preference -> {
             IntentUtils.openInBrowser(getContext(), "https://antennapod.org/contribute/");
             return true;

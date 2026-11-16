@@ -12,7 +12,6 @@
     <Preference
             android:key="about_source"
             android:icon="@drawable/ic_info"
-            android:summary="@string/about_source_summary"
             android:title="@string/about_source_title"/>
     <Preference
             android:key="about_contributors"

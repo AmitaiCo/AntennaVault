@@ -84,8 +84,7 @@ public class BugReportFragment extends AnimatedFragment {
                     break;
             }
         });
-        viewBinding.openForumButton.setOnClickListener(v ->
-                IntentUtils.openInBrowser(requireContext(), "https://forum.antennapod.org/search"));
+        viewBinding.openForumButton.setVisibility(View.GONE);
         viewBinding.openGithubButton.setOnClickListener(v ->
                 IntentUtils.openInBrowser(requireContext(), "https://github.com/AmitaiCo/AntennaPod/issues"));
         viewBinding.attribAppVersionLabel.setOnClickListener(v ->
