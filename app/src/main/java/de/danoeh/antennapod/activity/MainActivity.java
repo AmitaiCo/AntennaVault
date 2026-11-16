@@ -213,9 +213,7 @@ public class MainActivity extends CastEnabledActivity implements NavigationToolb
         transaction.replace(R.id.audioplayerFragment, audioPlayerFragment, AudioPlayerFragment.TAG);
         transaction.commit();
 
-        if (savedInstanceState == null) {
-            GuardianSetCodeDialog.showFirstRunPromptIfNeeded(this);
-        }
+        GuardianSetCodeDialog.showFirstRunPromptIfNeeded(this);
 
         FragmentContainerView bottomSheet = findViewById(R.id.audioplayerFragment);
         sheetBehavior = (LockableBottomSheetBehavior<FragmentContainerView>) BottomSheetBehavior.from(bottomSheet);

@@ -281,6 +281,15 @@ public class GuardianGateTest {
     }
 
     @Test
+    public void turningGateBackOnClosesAnOpenWindow() {
+        GuardianGate.setInitialCode(CODE);
+        GuardianGate.unlock(CODE);
+        GuardianGate.setEnabled(CODE, false);
+        GuardianGate.setEnabled(CODE, true);
+        assertFalse(GuardianGate.isOpen());
+    }
+
+    @Test
     public void reenabledGateIsClosedUntilVerified() {
         GuardianGate.setInitialCode(CODE);
         GuardianGate.setEnabled(CODE, false);

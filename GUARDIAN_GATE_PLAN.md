@@ -103,14 +103,15 @@ First run with no code set: show "Hand the phone to your guardian" and set the c
 - D5. DECIDED: keep Android cloud backup, but restoring needs the code (gate `OpmlBackupAgent.restoreEntity`; it has no UI, so when locked, hold the restored feeds as pending like D2).
 - D6. DECIDED: build in GitHub Actions. The fork is public, so Actions minutes are free. Actions must be enabled on the fork (off by default for forks).
 
-## 7. Implementation notes (after the steps 1-3 review)
-- UI code checks `GuardianGate.isOpen()` and prompts before calling into the database. `GuardianGateClosedException` thrown by `FeedDatabaseWriter.updateFeed`, `DBWriter.setFeedState` and `DatabaseExporter.importBackup` is only a backstop: the Subscribe buttons drop the `Future`, so a refusal there is silent.
-- `isConfigured()` false: route to first-run setup. `isEnabled()` false: the guardian turned the gate off, so `isOpen()` is always true.
-- Guardian settings (`changeCode`, `setWindowMinutes`, `setEnabled`) take the code as an argument and check it at the moment of the change; an open subscribe window is not enough. `setInitialCode` only works while no code is set.
+## 7. Implementation notes (as built, steps 1-6)
+- UI code asks for the code (`GuardianCodeDialog.runWhenOpen`) before calling into the database. `GuardianGateClosedException` from `FeedDatabaseWriter.updateFeed`, `DBWriter.setFeedState` / `changeFeedDownloadUrl` and `DatabaseExporter.importBackup` is only a backstop.
+- `GuardianGate.unlock(code)` opens the window; `GuardianGate.verify(code)` only checks the code (wrong codes still count toward the lockout). Guardian settings (`changeCode`, `setWindowMinutes`, `setEnabled`) take the code and check it at the moment of the change. `setInitialCode` only works while no code is set. Turning the gate back on also closes any open window.
+- `isConfigured()` false: adding is locked and setup is offered only at first start and in Settings > Guardian. `isTurnedOff()` true: the guardian switched the gate off and `isOpen()` is always true.
+- PBKDF2 runs outside the `GuardianGate` lock; all code checks and code changes are `@WorkerThread`.
+- `GuardianGateLifecycleTracker` (Application.ActivityLifecycleCallbacks, registered in `PodcastApp`) marks the app as backgrounded when no activity is started or one enters picture-in-picture; configuration changes do not count. The background timestamp and `lock()` use `commit()` so they survive the process being killed.
+- "Locked preview" (an episode of a `NOT_SUBSCRIBED` podcast while the gate is closed) is one rule, `GuardianGate.isLockedPreview`, used by playback (session callback, queue advance, play/resume), the play/stream/download buttons, downloads and sharing.
+- Podcasts from sync and Android backup restore are always held for approval, even while the gate is open; only a turned-off gate adds them directly. Approving checks the code and adds exactly the selected podcasts; it locks again unless the gate was already open. Rejecting needs the code and queues a sync removal unless the podcast is subscribed locally. Server-side removals drop the podcast from the waiting list.
 - Editing a feed URL is gated (`DBWriter.changeFeedDownloadUrl`); automatic HTTP redirects during refresh are not.
-- `verify()` and `setCode()` are `@WorkerThread` (PBKDF2). Call them off the main thread.
-- Step 4 wires `onAppBackgrounded()` / `onAppForegrounded()` from `ProcessLifecycleOwner` in `:app`.
 - Tests open the gate with `GuardianGateTestUtil` from `:storage:preferences` test fixtures.
 - Only give the guardian a release build. A debuggable build allows `adb shell run-as` to delete the gate's settings.
-- Podcasts from sync and Android backup restore are always held for approval, even while the gate is open; only a guardian-disabled gate adds them directly. Approving checks the code, adds exactly the selected podcasts and locks again. Rejecting also queues a removal from the sync account so the podcast does not come back.
-- "Locked preview" (an episode of a `NOT_SUBSCRIBED` podcast while the gate is closed) is one rule, `GuardianGate.isLockedPreview`, used by playback, the play/stream/download buttons, downloads and sharing.
+- Known limits: an approved local folder accepts any audio file added to it later; a preview that is already playing when the gate locks keeps playing until paused.

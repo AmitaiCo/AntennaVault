@@ -22,6 +22,7 @@ import org.robolectric.RuntimeEnvironment;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -106,11 +107,42 @@ public class PendingSubscriptionsTest {
     }
 
     @Test
-    public void approveKeepsAnAlreadyOpenGateOpen() {
+    public void approveKeepsAnAlreadyOpenGateOpenWithoutExtendingIt() {
+        long start = 1_000_000_000_000L;
+        GuardianGateTestUtil.setNow(start);
         GuardianGateTestUtil.open();
         PendingSubscriptions.addOrHold(context, URL, "Title");
-        PendingSubscriptions.approve(context, CODE, Collections.singletonList(URL));
+        GuardianGateTestUtil.setNow(start + TimeUnit.MINUTES.toMillis(GuardianGate.DEFAULT_WINDOW_MINUTES - 1));
+
+        assertEquals(GuardianGate.Result.ACCEPTED,
+                PendingSubscriptions.approve(context, CODE, Collections.singletonList(URL)));
+
+        assertEquals(1, DBReader.getFeedList().size());
         assertTrue(GuardianGate.isOpen());
+        GuardianGateTestUtil.setNow(start + TimeUnit.MINUTES.toMillis(GuardianGate.DEFAULT_WINDOW_MINUTES));
+        assertFalse(GuardianGate.isOpen());
+    }
+
+    @Test
+    public void approvedFeedWithoutTitleIsNamedAfterItsAddress() {
+        PendingSubscriptions.addOrHold(context, URL, null);
+        PendingSubscriptions.approve(context, CODE, Collections.singletonList(URL));
+        assertEquals(URL, DBReader.getFeedList().get(0).getTitle());
+    }
+
+    @Test
+    public void rejectKeepsSubscribedPodcastsOnTheSyncAccount() {
+        GuardianGateTestUtil.open();
+        Feed feed = new Feed(URL, null, "Subscribed");
+        feed.setItems(new ArrayList<>());
+        FeedDatabaseWriter.updateFeed(context, feed, false);
+        GuardianGate.lock();
+        PendingSubscriptions.addOrHold(context, URL, "Subscribed");
+
+        PendingSubscriptions.reject(CODE, Collections.singletonList(URL));
+
+        assertEquals(0, GuardianPendingFeeds.count());
+        assertTrue(removedFromSync.isEmpty());
     }
 
     @Test

@@ -41,4 +41,10 @@ public final class GuardianPendingNotification {
             notificationManager.notify(R.id.notification_guardian_pending, notification);
         }
     }
+
+    public static void cancel(Context context) {
+        NotificationManager notificationManager =
+                (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        notificationManager.cancel(R.id.notification_guardian_pending);
+    }
 }

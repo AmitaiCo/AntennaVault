@@ -27,6 +27,10 @@ public final class GuardianGateTestUtil {
         open();
     }
 
+    public static void setNow(long millis) {
+        GuardianGate.setClock(() -> millis);
+    }
+
     public static void open() {
         GuardianGate.Result result = GuardianGate.unlock(CODE);
         if (result != GuardianGate.Result.ACCEPTED) {

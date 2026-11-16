@@ -35,7 +35,7 @@ public final class PendingSubscriptions {
     public static GuardianGate.Result approve(@NonNull Context context, @NonNull String code,
                                               @NonNull Collection<String> urls) {
         boolean wasOpen = GuardianGate.isOpen();
-        GuardianGate.Result result = GuardianGate.unlock(code);
+        GuardianGate.Result result = wasOpen ? GuardianGate.verify(code) : GuardianGate.unlock(code);
         if (result != GuardianGate.Result.ACCEPTED) {
             return result;
         }
@@ -62,9 +62,16 @@ public final class PendingSubscriptions {
         if (result != GuardianGate.Result.ACCEPTED) {
             return result;
         }
+        Map<String, String> pending = GuardianPendingFeeds.getAll();
         for (String url : urls) {
+            if (!pending.containsKey(url)) {
+                continue;
+            }
             GuardianPendingFeeds.remove(url);
-            SynchronizationQueue.getInstance().enqueueFeedRemoved(url);
+            Feed existing = findByDownloadUrl(url);
+            if (existing == null || existing.getState() == Feed.STATE_NOT_SUBSCRIBED) {
+                SynchronizationQueue.getInstance().enqueueFeedRemoved(url);
+            }
         }
         return result;
     }

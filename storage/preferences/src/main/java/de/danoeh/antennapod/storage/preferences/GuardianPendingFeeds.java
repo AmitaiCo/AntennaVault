@@ -41,7 +41,7 @@ public class GuardianPendingFeeds {
         return result;
     }
 
-    public static int count() {
+    public static synchronized int count() {
         return prefs().getAll().size();
     }
 

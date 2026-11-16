@@ -24,6 +24,7 @@ import de.danoeh.antennapod.storage.preferences.GuardianPendingFeeds;
 import de.danoeh.antennapod.ui.preferences.screen.AnimatedPreferenceFragment;
 import de.danoeh.antennapod.ui.screen.guardian.GuardianCodeDialog;
 import de.danoeh.antennapod.ui.screen.guardian.GuardianSetCodeDialog;
+import de.danoeh.antennapod.ui.notifications.GuardianPendingNotification;
 
 public class GuardianPreferencesFragment extends AnimatedPreferenceFragment {
     private static final String PREF_STATUS = "guardianStatus";
@@ -100,6 +101,9 @@ public class GuardianPreferencesFragment extends AnimatedPreferenceFragment {
         Map<String, String> pending = GuardianPendingFeeds.getAll();
         Preference pendingPreference = findPreference(PREF_PENDING);
         pendingPreference.setVisible(!pending.isEmpty());
+        if (pending.isEmpty()) {
+            GuardianPendingNotification.cancel(requireContext());
+        }
         pendingPreference.setSummary(TextUtils.join(", ", pendingLabels(pending)));
 
         boolean configured = GuardianGate.isConfigured();

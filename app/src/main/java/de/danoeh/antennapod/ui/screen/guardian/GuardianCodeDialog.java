@@ -79,6 +79,7 @@ public final class GuardianCodeDialog {
                         if (lockIfAbandoned && result == GuardianGate.Result.ACCEPTED) {
                             GuardianGate.lock();
                         }
+                        button.setEnabled(true);
                         return;
                     }
                     button.setEnabled(true);
@@ -113,7 +114,10 @@ public final class GuardianCodeDialog {
     static void submitOnDone(TextView field, AlertDialog dialog) {
         field.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_DONE) {
-                dialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick();
+                Button button = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+                if (button.isEnabled()) {
+                    button.performClick();
+                }
                 return true;
             }
             return false;

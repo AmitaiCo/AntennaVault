@@ -124,7 +124,10 @@ public class OnlineFeedViewActivity extends AppCompatActivity {
                     .subscribeOn(Schedulers.io())
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(feed -> openFeed(feed.getId()),
-                        error -> unlockThenLookup(url),
+                        error -> {
+                            Log.w(TAG, "Could not check existing subscriptions", error);
+                            unlockThenLookup(url);
+                        },
                         () -> unlockThenLookup(url));
         }
     }

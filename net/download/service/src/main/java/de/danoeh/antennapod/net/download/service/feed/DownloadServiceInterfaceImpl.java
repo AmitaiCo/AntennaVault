@@ -26,10 +26,10 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 public class DownloadServiceInterfaceImpl extends DownloadServiceInterface {
-    private static final String TAG = "DownloadServiceImpl";
+    private static final String TAG = "DownloadServiceInterfaceImpl";
 
     public void downloadNow(Context context, FeedItem item, boolean ignoreConstraints) {
-        if (isLockedPreview(item)) {
+        if (refuseLockedPreview(item)) {
             return;
         }
         OneTimeWorkRequest.Builder workRequest = getRequest(context, item);
@@ -44,7 +44,7 @@ public class DownloadServiceInterfaceImpl extends DownloadServiceInterface {
     }
 
     public void download(Context context, FeedItem item) {
-        if (isLockedPreview(item)) {
+        if (refuseLockedPreview(item)) {
             return;
         }
         if (item.isDownloaded()) {
@@ -56,7 +56,7 @@ public class DownloadServiceInterfaceImpl extends DownloadServiceInterface {
                 ExistingWorkPolicy.KEEP, workRequest.build());
     }
 
-    private static boolean isLockedPreview(FeedItem item) {
+    private static boolean refuseLockedPreview(FeedItem item) {
         if (GuardianGate.isLockedPreview(item)) {
             Log.w(TAG, "Not downloading an episode of an unsubscribed podcast while the guardian gate is closed");
             return true;

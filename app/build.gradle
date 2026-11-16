@@ -121,6 +121,7 @@ dependencies {
     implementation 'com.github.skydoves:balloon:1.5.3'
     implementation 'it.xabaras.android:recyclerview-swipedecorator:1.4'
 
+    testImplementation testFixtures(project(':storage:preferences'))
     testImplementation "androidx.test:core:$testCoreVersion"
     testImplementation "junit:junit:$junitVersion"
     testImplementation "org.robolectric:robolectric:$robolectricVersion"

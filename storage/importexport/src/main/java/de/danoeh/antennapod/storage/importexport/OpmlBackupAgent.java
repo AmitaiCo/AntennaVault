@@ -30,6 +30,7 @@ import java.security.DigestOutputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Arrays;
 
 import de.danoeh.antennapod.storage.database.DBReader;
@@ -141,7 +142,11 @@ public class OpmlBackupAgent extends BackupAgentHelper {
                 ArrayList<OpmlElement> opmlElements = new OpmlReader().readDocument(reader);
                 mChecksum = digester == null ? null : digester.digest();
                 boolean newlyHeld = false;
+                List<String> subscribed = DBReader.getFeedListDownloadUrls(true);
                 for (OpmlElement opmlElem : opmlElements) {
+                    if (subscribed.contains(opmlElem.getXmlUrl())) {
+                        continue;
+                    }
                     if (PendingSubscriptions.addOrHold(mContext, opmlElem.getXmlUrl(), opmlElem.getText())) {
                         newlyHeld = true;
                     }

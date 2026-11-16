@@ -24,7 +24,9 @@ import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
@@ -127,6 +129,41 @@ public class MediaLibrarySessionCallbackTest {
         assertEquals(1, setMediaItem(mediaId).mediaItems.size());
     }
 
+    @Test
+    public void lockedPreviewBeforeRequestedEpisodeDoesNotShiftStartIndex() throws Exception {
+        long previewId = seedEpisode(Feed.STATE_NOT_SUBSCRIBED, "preview-url", "Preview episode").getId();
+        long subscribedId = seedEpisode(Feed.STATE_SUBSCRIBED, "subscribed-url", EPISODE_TITLE).getId();
+        GuardianGate.lock();
+
+        List<MediaItem> requested = Arrays.asList(
+                MediaItemAdapter.fromMediaIdStub(previewId), MediaItemAdapter.fromMediaIdStub(subscribedId));
+        MediaSession.MediaItemsWithStartPosition result = callback.onSetMediaItems(session, controllerInfo,
+                requested, 1, C.TIME_UNSET).get(5, TimeUnit.SECONDS);
+
+        assertEquals(1, result.mediaItems.size());
+        assertEquals(0, result.startIndex);
+        assertEquals(String.valueOf(subscribedId), result.mediaItems.get(0).mediaId);
+    }
+
+    @Test
+    public void lockedPreviewIsNotResumed() throws Exception {
+        PlaybackPreferences.writeMediaPlaying(seedEpisode(Feed.STATE_NOT_SUBSCRIBED));
+        GuardianGate.lock();
+        assertEquals(0, callback.onPlaybackResumption(session, controllerInfo)
+                .get(5, TimeUnit.SECONDS).mediaItems.size());
+    }
+
+    @Test
+    public void voiceSearchSkipsLockedPreview() throws Exception {
+        seedEpisode(Feed.STATE_NOT_SUBSCRIBED);
+        GuardianGate.lock();
+        MediaItem searchItem = MediaItem.EMPTY.buildUpon()
+                .setRequestMetadata(new MediaItem.RequestMetadata.Builder().setSearchQuery(EPISODE_TITLE).build())
+                .build();
+        assertEquals(0, callback.onSetMediaItems(session, controllerInfo, Collections.singletonList(searchItem),
+                C.INDEX_UNSET, C.TIME_UNSET).get(5, TimeUnit.SECONDS).mediaItems.size());
+    }
+
     private MediaSession.MediaItemsWithStartPosition setMediaItem(long mediaId) throws Exception {
         return callback.onSetMediaItems(session, controllerInfo,
                 Collections.singletonList(MediaItemAdapter.fromMediaIdStub(mediaId)), C.INDEX_UNSET, C.TIME_UNSET)
@@ -138,13 +175,17 @@ public class MediaLibrarySessionCallbackTest {
     }
 
     private FeedMedia seedEpisode(int state) {
-        Feed feed = new Feed("url", null, null);
+        return seedEpisode(state, "url", EPISODE_TITLE);
+    }
+
+    private FeedMedia seedEpisode(int state, String feedUrl, String title) {
+        Feed feed = new Feed(feedUrl, null, null);
         feed.setState(state);
         feed.setItems(new ArrayList<>());
         FeedItem item = new FeedItem();
-        item.setItemIdentifier("id");
-        item.setTitle(EPISODE_TITLE);
-        item.setMedia(new FeedMedia(item, "http://example.com", 2, "mime"));
+        item.setItemIdentifier(feedUrl + "-episode");
+        item.setTitle(title);
+        item.setMedia(new FeedMedia(item, feedUrl + "/episode.mp3", 2, "mime"));
         item.setFeed(feed);
         feed.getItems().add(item);
         return FeedDatabaseWriter.updateFeed(context, feed, false).getItems().get(0).getMedia();

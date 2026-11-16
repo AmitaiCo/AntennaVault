@@ -174,7 +174,11 @@ public class GuardianGate {
         Result result = checkCode(code);
         if (result == Result.ACCEPTED) {
             synchronized (GuardianGate.class) {
-                prefs().edit().putBoolean(KEY_DISABLED, !enabled).commit();
+                SharedPreferences.Editor editor = prefs().edit().putBoolean(KEY_DISABLED, !enabled);
+                if (enabled) {
+                    editor.putLong(KEY_OPENED_AT, 0).putLong(KEY_OPEN_UNTIL, 0).putLong(KEY_BACKGROUND_SINCE, 0);
+                }
+                editor.commit();
             }
         }
         return result;
