@@ -1,5 +1,6 @@
 package de.danoeh.antennapod.storage.preferences;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.util.Base64;
@@ -65,6 +66,7 @@ public class GuardianGate {
     }
 
     @WorkerThread
+    @SuppressLint("ApplySharedPref")
     public static synchronized void setCode(@NonNull String code) {
         if (code.isEmpty()) {
             throw new IllegalArgumentException("Code must not be empty");
@@ -82,7 +84,7 @@ public class GuardianGate {
     }
 
     public static synchronized void clearCode() {
-        prefs().edit().clear().commit();
+        prefs().edit().clear().apply();
     }
 
     public static boolean isOpen() {
@@ -102,6 +104,7 @@ public class GuardianGate {
 
     @NonNull
     @WorkerThread
+    @SuppressLint("ApplySharedPref")
     public static synchronized Result verify(@NonNull String code) {
         if (!isConfigured()) {
             return Result.NOT_CONFIGURED;
@@ -142,7 +145,7 @@ public class GuardianGate {
                 .putLong(KEY_OPENED_AT, now)
                 .putLong(KEY_OPEN_UNTIL, now + TimeUnit.MINUTES.toMillis(minutes))
                 .putLong(KEY_BACKGROUND_SINCE, 0)
-                .commit();
+                .apply();
     }
 
     public static synchronized void lock() {
@@ -150,7 +153,7 @@ public class GuardianGate {
                 .putLong(KEY_OPENED_AT, 0)
                 .putLong(KEY_OPEN_UNTIL, 0)
                 .putLong(KEY_BACKGROUND_SINCE, 0)
-                .commit();
+                .apply();
     }
 
     public static int getWindowMinutes() {
@@ -161,7 +164,7 @@ public class GuardianGate {
         if (minutes < 1) {
             throw new IllegalArgumentException("Window must be at least one minute");
         }
-        prefs().edit().putInt(KEY_WINDOW_MINUTES, minutes).commit();
+        prefs().edit().putInt(KEY_WINDOW_MINUTES, minutes).apply();
     }
 
     public static synchronized void onAppBackgrounded() {

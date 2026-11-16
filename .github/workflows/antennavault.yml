@@ -88,3 +88,8 @@ jobs:
       - name: Readable lint errors
         if: failure()
         run: python .github/workflows/errorPrinter.py
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: lint-reports
+          path: '**/build/reports/lint-results-*.*'
