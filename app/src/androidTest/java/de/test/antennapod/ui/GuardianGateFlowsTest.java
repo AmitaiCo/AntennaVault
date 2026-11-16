@@ -4,7 +4,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.net.Uri;
-import android.widget.TextView;
 
 import androidx.lifecycle.Lifecycle;
 import androidx.test.core.app.ActivityScenario;
@@ -15,6 +14,8 @@ import de.danoeh.antennapod.R;
 import de.danoeh.antennapod.activity.MainActivity;
 import de.danoeh.antennapod.activity.OpmlImportActivity;
 import de.danoeh.antennapod.model.feed.Feed;
+import de.danoeh.antennapod.model.feed.FeedItem;
+import de.danoeh.antennapod.model.feed.FeedMedia;
 import de.danoeh.antennapod.storage.database.DBReader;
 import de.danoeh.antennapod.storage.database.PodDBAdapter;
 import de.danoeh.antennapod.storage.preferences.GuardianGate;
@@ -36,6 +37,9 @@ import org.junit.runner.RunWith;
 
 import java.io.File;
 import java.io.FileWriter;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
 import java.util.concurrent.TimeUnit;
 
 import static androidx.test.espresso.Espresso.onView;
@@ -53,7 +57,6 @@ import static de.test.antennapod.EspressoTestUtils.clickChildViewWithId;
 import static de.test.antennapod.EspressoTestUtils.clickPreference;
 import static de.test.antennapod.EspressoTestUtils.waitForViewGlobally;
 import static org.hamcrest.Matchers.allOf;
-import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -117,18 +120,6 @@ public class GuardianGateFlowsTest {
         onView(withId(R.id.textInput)).perform(replaceText(code), pressImeActionButton());
     }
 
-    private Feed subscribedFeedWithPreview() throws Exception {
-        uiTestUtils.addHostedFeedData();
-        uiTestUtils.hostedFeeds.get(0).setLastRefreshAttempt(System.currentTimeMillis());
-        uiTestUtils.addLocalFeedData(false);
-        Feed preview = uiTestUtils.hostedFeeds.get(0);
-        PodDBAdapter adapter = PodDBAdapter.getInstance();
-        adapter.open();
-        adapter.setFeedState(preview.getId(), Feed.STATE_NOT_SUBSCRIBED);
-        adapter.close();
-        return preview;
-    }
-
     private void assertNoCodePrompt() throws InterruptedException {
         Thread.sleep(1000);
         onView(withText(R.string.guardian_code_title)).check(doesNotExist());
@@ -159,28 +150,34 @@ public class GuardianGateFlowsTest {
     }
 
     @Test
-    public void streamingPreviewEpisodeAsksForCode() throws Exception {
-        Feed preview = subscribedFeedWithPreview();
-        long episodeId = preview.getItems().get(0).getId();
-        assertEquals(Feed.STATE_NOT_SUBSCRIBED, DBReader.getFeed(preview.getId(), false, 0, 0).getState());
+    public void streamingPreviewEpisodeAsksForCode() {
+        long episodeId = insertPreviewEpisodeWithAudio();
+        assertTrue(DBReader.getFeedItem(episodeId).hasMedia());
         assertTrue(GuardianGate.isLockedPreview(DBReader.getFeedItem(episodeId)));
         launchMain(new Intent(context, MainActivity.class)
                 .putExtras(new MainActivityStarter(context).withOpenEpisode(episodeId).getIntent()));
 
-        try {
-            waitForViewGlobally(allOf(withId(R.id.butAction1Text),
-                    anyOf(withText(R.string.stream_label), withText(R.string.play_label))), TIMEOUT);
-        } catch (RuntimeException | AssertionError e) {
-            StringBuilder label = new StringBuilder();
-            onView(allOf(withId(R.id.butAction1Text), isDisplayed()))
-                    .check((view, noView) -> label.append(((TextView) view).getText()));
-            throw new AssertionError("Episode button shows \"" + label + "\"", e);
-        }
+        waitForViewGlobally(allOf(withId(R.id.butAction1Text), withText(R.string.stream_label)), TIMEOUT);
         onView(allOf(withId(R.id.butAction1), isDisplayed())).perform(click());
 
         waitForCodePrompt();
         onView(withText(R.string.cancel_label)).perform(click());
         assertFalse(GuardianGate.isOpen());
+    }
+
+    private long insertPreviewEpisodeWithAudio() {
+        Feed preview = new Feed("https://example.com/preview.xml", null, "Preview podcast");
+        preview.setState(Feed.STATE_NOT_SUBSCRIBED);
+        preview.setLastRefreshAttempt(System.currentTimeMillis());
+        FeedItem episode = new FeedItem(0, "Preview episode", "preview-episode", "https://example.com/episode",
+                new Date(), FeedItem.UNPLAYED, preview);
+        episode.setMedia(new FeedMedia(episode, "https://example.com/episode.mp3", 1000, "audio/mpeg"));
+        preview.setItems(new ArrayList<>(Collections.singletonList(episode)));
+        PodDBAdapter adapter = PodDBAdapter.getInstance();
+        adapter.open();
+        adapter.setCompleteFeed(preview);
+        adapter.close();
+        return episode.getId();
     }
 
     @Test
