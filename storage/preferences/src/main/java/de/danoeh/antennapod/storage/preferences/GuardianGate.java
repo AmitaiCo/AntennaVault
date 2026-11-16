@@ -1,0 +1,170 @@
+package de.danoeh.antennapod.storage.preferences;
+
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.util.Base64;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.VisibleForTesting;
+
+import java.security.GeneralSecurityException;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
+import java.util.concurrent.TimeUnit;
+import java.util.function.LongSupplier;
+
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
+
+public class GuardianGate {
+    public enum Result { OPENED, WRONG_CODE, LOCKED_OUT }
+
+    public static final int DEFAULT_WINDOW_MINUTES = 10;
+    public static final int ATTEMPTS_BEFORE_LOCKOUT = 5;
+    public static final long BACKGROUND_GRACE_MILLIS = TimeUnit.MINUTES.toMillis(1);
+    private static final long MAX_LOCKOUT_MINUTES = TimeUnit.DAYS.toMinutes(1);
+
+    private static final String PREF_NAME = "guardian_gate";
+    private static final String KEY_HASH = "hash";
+    private static final String KEY_SALT = "salt";
+    private static final String KEY_ITERATIONS = "iterations";
+    private static final String KEY_OPENED_AT = "opened_at";
+    private static final String KEY_OPEN_UNTIL = "open_until";
+    private static final String KEY_WINDOW_MINUTES = "window_minutes";
+    private static final String KEY_FAILED_COUNT = "failed_count";
+    private static final String KEY_LOCKOUT_UNTIL = "lockout_until";
+    private static final String KEY_BACKGROUND_SINCE = "background_since";
+
+    private static final String ALGORITHM = "PBKDF2WithHmacSHA1";
+    private static final int ITERATIONS = 20000;
+    private static final int SALT_BYTES = 16;
+    private static final int KEY_BITS = 256;
+
+    private static SharedPreferences prefs;
+    private static LongSupplier clock = System::currentTimeMillis;
+
+    public static void init(Context context) {
+        prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+    }
+
+    @VisibleForTesting
+    static void setClock(LongSupplier newClock) {
+        clock = newClock;
+    }
+
+    public static boolean isConfigured() {
+        return prefs.getString(KEY_HASH, null) != null;
+    }
+
+    public static void setCode(@NonNull String code) {
+        if (code.isEmpty()) {
+            throw new IllegalArgumentException("Code must not be empty");
+        }
+        byte[] salt = new byte[SALT_BYTES];
+        new SecureRandom().nextBytes(salt);
+        byte[] hash = hash(code, salt, ITERATIONS);
+        prefs.edit()
+                .putString(KEY_SALT, Base64.encodeToString(salt, Base64.NO_WRAP))
+                .putString(KEY_HASH, Base64.encodeToString(hash, Base64.NO_WRAP))
+                .putInt(KEY_ITERATIONS, ITERATIONS)
+                .putInt(KEY_FAILED_COUNT, 0)
+                .putLong(KEY_LOCKOUT_UNTIL, 0)
+                .commit();
+    }
+
+    public static void clearCode() {
+        prefs.edit().clear().commit();
+    }
+
+    public static boolean isOpen() {
+        if (!isConfigured()) {
+            return false;
+        }
+        long now = clock.getAsLong();
+        long openedAt = prefs.getLong(KEY_OPENED_AT, 0);
+        long openUntil = prefs.getLong(KEY_OPEN_UNTIL, 0);
+        return now >= openedAt && now < openUntil;
+    }
+
+    @NonNull
+    public static Result verify(@NonNull String code) {
+        if (!isConfigured()) {
+            return Result.WRONG_CODE;
+        }
+        if (getLockoutRemainingMillis() > 0) {
+            return Result.LOCKED_OUT;
+        }
+        byte[] salt = Base64.decode(prefs.getString(KEY_SALT, ""), Base64.NO_WRAP);
+        byte[] expected = Base64.decode(prefs.getString(KEY_HASH, ""), Base64.NO_WRAP);
+        int iterations = prefs.getInt(KEY_ITERATIONS, ITERATIONS);
+        if (MessageDigest.isEqual(expected, hash(code, salt, iterations))) {
+            prefs.edit().putInt(KEY_FAILED_COUNT, 0).putLong(KEY_LOCKOUT_UNTIL, 0).commit();
+            openFor(getWindowMinutes());
+            return Result.OPENED;
+        }
+        int failed = prefs.getInt(KEY_FAILED_COUNT, 0) + 1;
+        SharedPreferences.Editor editor = prefs.edit().putInt(KEY_FAILED_COUNT, failed);
+        if (failed % ATTEMPTS_BEFORE_LOCKOUT == 0) {
+            int round = failed / ATTEMPTS_BEFORE_LOCKOUT;
+            long minutes = Math.min(1L << Math.min(round - 1, 20), MAX_LOCKOUT_MINUTES);
+            editor.putLong(KEY_LOCKOUT_UNTIL, clock.getAsLong() + TimeUnit.MINUTES.toMillis(minutes));
+        }
+        editor.commit();
+        return Result.WRONG_CODE;
+    }
+
+    public static long getLockoutRemainingMillis() {
+        return Math.max(0, prefs.getLong(KEY_LOCKOUT_UNTIL, 0) - clock.getAsLong());
+    }
+
+    public static int getFailedAttempts() {
+        return prefs.getInt(KEY_FAILED_COUNT, 0);
+    }
+
+    public static void openFor(int minutes) {
+        long now = clock.getAsLong();
+        prefs.edit()
+                .putLong(KEY_OPENED_AT, now)
+                .putLong(KEY_OPEN_UNTIL, now + TimeUnit.MINUTES.toMillis(minutes))
+                .putLong(KEY_BACKGROUND_SINCE, 0)
+                .commit();
+    }
+
+    public static void lock() {
+        prefs.edit().putLong(KEY_OPENED_AT, 0).putLong(KEY_OPEN_UNTIL, 0).commit();
+    }
+
+    public static int getWindowMinutes() {
+        return prefs.getInt(KEY_WINDOW_MINUTES, DEFAULT_WINDOW_MINUTES);
+    }
+
+    public static void setWindowMinutes(int minutes) {
+        if (minutes < 1) {
+            throw new IllegalArgumentException("Window must be at least one minute");
+        }
+        prefs.edit().putInt(KEY_WINDOW_MINUTES, minutes).commit();
+    }
+
+    public static void onAppBackgrounded() {
+        prefs.edit().putLong(KEY_BACKGROUND_SINCE, clock.getAsLong()).commit();
+    }
+
+    public static void onAppForegrounded() {
+        long since = prefs.getLong(KEY_BACKGROUND_SINCE, 0);
+        if (since != 0 && clock.getAsLong() - since > BACKGROUND_GRACE_MILLIS) {
+            lock();
+        }
+        prefs.edit().putLong(KEY_BACKGROUND_SINCE, 0).commit();
+    }
+
+    private static byte[] hash(String code, byte[] salt, int iterations) {
+        PBEKeySpec spec = new PBEKeySpec(code.toCharArray(), salt, iterations, KEY_BITS);
+        try {
+            return SecretKeyFactory.getInstance(ALGORITHM).generateSecret(spec).getEncoded();
+        } catch (GeneralSecurityException e) {
+            throw new IllegalStateException(e);
+        } finally {
+            spec.clearPassword();
+        }
+    }
+}

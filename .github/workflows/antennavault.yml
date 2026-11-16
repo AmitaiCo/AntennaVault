@@ -60,5 +60,7 @@ jobs:
           key: gradle-${{ hashFiles('**/*.gradle*') }}-${{ hashFiles('**/gradle/wrapper/gradle-wrapper.properties') }}
       - name: Configure parallel build
         run: echo "org.gradle.parallel=true" >> local.properties
+      - name: Checkstyle
+        run: ./gradlew checkstyle
       - name: Test
         run: ./gradlew testFreeDebugUnitTest testDebugUnitTest
