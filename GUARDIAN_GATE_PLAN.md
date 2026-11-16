@@ -96,7 +96,7 @@ First run with no code set: show "Hand the phone to your guardian" and set the c
 7. Manual checklist on a real phone, then a signed release APK.
 
 ## 6. Decisions for the owner
-- D1. DECIDED (11-15): app name **AntennaVault**. App id: `io.github.amitaitto.antennavault`.
+- D1. DECIDED (11-15): app name **AntennaVault**. App id: `io.github.amitai.antennavault`.
 - D2. DECIDED: sync adds while locked are held as pending, approved with the code.
 - D3. DECIDED: code before showing anything. Preview episodes are playable without subscribing (ItemFragment / FeedItemlistFragment only show a "not subscribed" label), so "show page, gate Subscribe" would let links be used to listen to anything. Do: gate `OnlineFeedViewActivity` before it loads the feed, and also block playback of `STATE_NOT_SUBSCRIBED` feeds when the gate is closed (covers a preview left over from an earlier open window).
 - D4. DECIDED: do not gate unsubscribing.
