@@ -36,6 +36,7 @@ import de.danoeh.antennapod.playback.base.RewindAfterPauseUtils;
 import de.danoeh.antennapod.ui.appstartintent.MediaButtonStarter;
 import de.danoeh.antennapod.playback.service.R;
 import de.danoeh.antennapod.storage.database.DBReader;
+import de.danoeh.antennapod.storage.preferences.GuardianGate;
 import de.danoeh.antennapod.storage.preferences.PlaybackPreferences;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
 import de.danoeh.antennapod.event.playback.SleepTimerUpdatedEvent;
@@ -263,7 +264,7 @@ public class MediaLibrarySessionCallback implements MediaLibraryService.MediaLib
             Maybe.fromCallable(() -> {
                 List<FeedItem> results = DBReader.searchFeedItems(0, searchQuery, FeedItemFilter.unfiltered());
                 for (FeedItem result : results) {
-                    if (result.getMedia() != null) {
+                    if (result.getMedia() != null && !isBlockedByGuardian(result.getMedia())) {
                         return result.getMedia();
                     }
                 }
@@ -359,7 +360,7 @@ public class MediaLibrarySessionCallback implements MediaLibraryService.MediaLib
                     media = items.get(0).getMedia();
                 }
             }
-            return media;
+            return media != null && isBlockedByGuardian(media) ? null : media;
         })
                 .subscribeOn(Schedulers.io())
                 .subscribe(
@@ -542,12 +543,21 @@ public class MediaLibrarySessionCallback implements MediaLibraryService.MediaLib
                     Log.e(TAG, "Media not found for ID: " + mediaId);
                     continue;
                 }
+                if (isBlockedByGuardian(media)) {
+                    Log.w(TAG, "Not playing an episode of an unsubscribed podcast while the guardian gate is closed");
+                    continue;
+                }
                 builder.add(MediaItemAdapter.fromPlayable(context, media, false));
             } catch (NumberFormatException e) {
                 Log.e(TAG, "Invalid media ID: " + item.mediaId, e);
             }
         }
         return builder.build();
+    }
+
+    private static boolean isBlockedByGuardian(FeedMedia media) {
+        Feed feed = media.getItem() != null ? media.getItem().getFeed() : null;
+        return feed != null && feed.getState() == Feed.STATE_NOT_SUBSCRIBED && !GuardianGate.isOpen();
     }
 
     @WorkerThread

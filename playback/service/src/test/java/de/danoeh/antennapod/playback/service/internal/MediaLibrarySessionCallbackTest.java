@@ -13,6 +13,7 @@ import de.danoeh.antennapod.playback.base.MediaItemAdapter;
 import de.danoeh.antennapod.storage.database.FeedDatabaseWriter;
 import de.danoeh.antennapod.storage.database.PodDBAdapter;
 import de.danoeh.antennapod.storage.preferences.PlaybackPreferences;
+import de.danoeh.antennapod.storage.preferences.GuardianGate;
 import de.danoeh.antennapod.storage.preferences.GuardianGateTestUtil;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
 import org.junit.After;
@@ -106,8 +107,39 @@ public class MediaLibrarySessionCallbackTest {
         assertEquals(String.valueOf(mediaId), result.mediaItems.get(0).mediaId);
     }
 
+    @Test
+    public void previewEpisodeIsNotPlayedWhileGuardianGateIsClosed() throws Exception {
+        long mediaId = seedEpisode(Feed.STATE_NOT_SUBSCRIBED).getId();
+        GuardianGate.lock();
+        assertEquals(0, setMediaItem(mediaId).mediaItems.size());
+    }
+
+    @Test
+    public void previewEpisodeIsPlayedWhileGuardianGateIsOpen() throws Exception {
+        long mediaId = seedEpisode(Feed.STATE_NOT_SUBSCRIBED).getId();
+        assertEquals(1, setMediaItem(mediaId).mediaItems.size());
+    }
+
+    @Test
+    public void subscribedEpisodeIsPlayedWhileGuardianGateIsClosed() throws Exception {
+        long mediaId = seedEpisode().getId();
+        GuardianGate.lock();
+        assertEquals(1, setMediaItem(mediaId).mediaItems.size());
+    }
+
+    private MediaSession.MediaItemsWithStartPosition setMediaItem(long mediaId) throws Exception {
+        return callback.onSetMediaItems(session, controllerInfo,
+                Collections.singletonList(MediaItemAdapter.fromMediaIdStub(mediaId)), C.INDEX_UNSET, C.TIME_UNSET)
+                .get(5, TimeUnit.SECONDS);
+    }
+
     private FeedMedia seedEpisode() {
+        return seedEpisode(Feed.STATE_SUBSCRIBED);
+    }
+
+    private FeedMedia seedEpisode(int state) {
         Feed feed = new Feed("url", null, null);
+        feed.setState(state);
         feed.setItems(new ArrayList<>());
         FeedItem item = new FeedItem();
         item.setItemIdentifier("id");
