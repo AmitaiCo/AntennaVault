@@ -30,6 +30,7 @@ public class PodcastApp extends Application {
 
         DynamicColors.applyToActivitiesIfAvailable(this);
         ClientConfigurator.initialize(this);
+        registerActivityLifecycleCallbacks(new GuardianGateLifecycleTracker());
         PreferenceUpgrader.checkUpgrades(this);
     }
 }

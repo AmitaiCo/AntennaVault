@@ -36,6 +36,7 @@ import de.danoeh.antennapod.storage.database.NavDrawerData;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
 import de.danoeh.antennapod.ui.MenuItemUtils;
 import de.danoeh.antennapod.ui.screen.AddFeedFragment;
+import de.danoeh.antennapod.ui.screen.guardian.GuardianCodeDialog;
 import de.danoeh.antennapod.ui.screen.SearchFragment;
 
 import de.danoeh.antennapod.ui.view.EmptyViewHandler;
@@ -161,11 +162,11 @@ public class SubscriptionFragment extends Fragment
         progressBar.setVisibility(View.VISIBLE);
 
         subscriptionAddButton = root.findViewById(R.id.subscriptions_add);
-        subscriptionAddButton.setOnClickListener(view -> {
+        subscriptionAddButton.setOnClickListener(view -> GuardianCodeDialog.runWhenOpen(requireContext(), () -> {
             if (getActivity() instanceof MainActivity) {
                 ((MainActivity) getActivity()).loadChildFragment(new AddFeedFragment());
             }
-        });
+        }));
 
         feedsFilteredMsg = root.findViewById(R.id.feeds_filtered_message);
         feedsFilteredMsg.setOnClickListener((l) ->

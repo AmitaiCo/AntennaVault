@@ -45,6 +45,7 @@ import de.danoeh.antennapod.ui.appstartintent.OnlineFeedviewActivityStarter;
 import de.danoeh.antennapod.ui.common.Keyboard;
 import de.danoeh.antennapod.ui.discovery.OnlineSearchFragment;
 import de.danoeh.antennapod.ui.screen.feed.FeedItemlistFragment;
+import de.danoeh.antennapod.ui.screen.guardian.GuardianCodeDialog;
 import de.danoeh.antennapod.ui.view.LiftOnScrollListener;
 import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
@@ -103,23 +104,11 @@ public class AddFeedFragment extends Fragment {
         viewBinding.addViaUrlButton.setOnClickListener(v
                 -> showAddViaUrlDialog());
 
-        viewBinding.opmlImportButton.setOnClickListener(v -> {
-            try {
-                chooseOpmlImportPathLauncher.launch("*/*");
-            } catch (ActivityNotFoundException e) {
-                e.printStackTrace();
-                EventBus.getDefault().post(new MessageEvent(getString(R.string.unable_to_start_system_file_manager)));
-            }
-        });
+        viewBinding.opmlImportButton.setOnClickListener(v ->
+                GuardianCodeDialog.runWhenOpen(requireContext(), this::launchOpmlImport));
 
-        viewBinding.addLocalFolderButton.setOnClickListener(v -> {
-            try {
-                addLocalFolderLauncher.launch(null);
-            } catch (ActivityNotFoundException e) {
-                e.printStackTrace();
-                EventBus.getDefault().post(new MessageEvent(getString(R.string.unable_to_start_system_file_manager)));
-            }
-        });
+        viewBinding.addLocalFolderButton.setOnClickListener(v ->
+                GuardianCodeDialog.runWhenOpen(requireContext(), this::launchAddLocalFolder));
         viewBinding.searchButton.setOnClickListener(view -> performSearch());
 
         return viewBinding.getRoot();
@@ -129,6 +118,24 @@ public class AddFeedFragment extends Fragment {
     public void onSaveInstanceState(@NonNull Bundle outState) {
         outState.putBoolean(KEY_UP_ARROW, displayUpArrow);
         super.onSaveInstanceState(outState);
+    }
+
+    private void launchAddLocalFolder() {
+        try {
+            addLocalFolderLauncher.launch(null);
+        } catch (ActivityNotFoundException e) {
+            e.printStackTrace();
+            EventBus.getDefault().post(new MessageEvent(getString(R.string.unable_to_start_system_file_manager)));
+        }
+    }
+
+    private void launchOpmlImport() {
+        try {
+            chooseOpmlImportPathLauncher.launch("*/*");
+        } catch (ActivityNotFoundException e) {
+            e.printStackTrace();
+            EventBus.getDefault().post(new MessageEvent(getString(R.string.unable_to_start_system_file_manager)));
+        }
     }
 
     private void showAddViaUrlDialog() {
