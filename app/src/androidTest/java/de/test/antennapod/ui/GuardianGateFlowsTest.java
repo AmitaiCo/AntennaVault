@@ -7,6 +7,7 @@ import android.net.Uri;
 
 import androidx.lifecycle.Lifecycle;
 import androidx.test.core.app.ActivityScenario;
+import androidx.test.espresso.Espresso;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 
@@ -111,10 +112,13 @@ public class GuardianGateFlowsTest {
 
     private void typeCode(String code, int button) {
         onView(withId(R.id.textInput)).perform(replaceText(code));
+        Espresso.closeSoftKeyboard();
         onView(withText(button)).perform(click());
     }
 
     private Feed subscribedFeedWithPreview() throws Exception {
+        uiTestUtils.addHostedFeedData();
+        uiTestUtils.hostedFeeds.get(0).setLastRefreshAttempt(System.currentTimeMillis());
         uiTestUtils.addLocalFeedData(false);
         Feed preview = uiTestUtils.hostedFeeds.get(0);
         PodDBAdapter adapter = PodDBAdapter.getInstance();
@@ -232,7 +236,7 @@ public class GuardianGateFlowsTest {
 
         waitForViewGlobally(withId(R.id.butShowInfo), TIMEOUT);
         onView(withId(R.id.butShowInfo)).perform(click());
-        waitForViewGlobally(withText(feed.getAuthor()), TIMEOUT);
+        waitForViewGlobally(withId(R.id.urlLabel), TIMEOUT);
         onView(actionBarOverflow()).perform(click());
         onView(withText(R.string.edit_url_menu)).perform(click());
         waitForCodePrompt();

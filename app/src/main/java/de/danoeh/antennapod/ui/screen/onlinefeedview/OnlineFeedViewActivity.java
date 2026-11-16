@@ -133,7 +133,11 @@ public class OnlineFeedViewActivity extends AppCompatActivity {
     }
 
     private void unlockThenLookup(String url) {
-        GuardianCodeDialog.runWhenOpen(this, () -> lookupUrlAndDownload(url), this::finish);
+        viewBinding.progressBar.setVisibility(View.INVISIBLE);
+        GuardianCodeDialog.runWhenOpen(this, () -> {
+            viewBinding.progressBar.setVisibility(View.VISIBLE);
+            lookupUrlAndDownload(url);
+        }, this::finish);
     }
 
     @Nullable
