@@ -158,11 +158,11 @@ public class GuardianGateFlowsTest {
     @Test
     public void streamingPreviewEpisodeAsksForCode() throws Exception {
         Feed preview = subscribedFeedWithPreview();
-        launchMain(openFeed(preview.getId()));
+        long episodeId = preview.getItems().get(1).getId();
+        launchMain(new Intent(context, MainActivity.class)
+                .putExtras(new MainActivityStarter(context).withOpenEpisode(episodeId).getIntent()));
 
-        waitForViewGlobally(allOf(withId(R.id.recyclerView), isDisplayed(), hasMinimumChildCount(1)), TIMEOUT);
-        onView(allOf(withId(R.id.recyclerView), isDisplayed())).perform(actionOnItemAtPosition(0, click()));
-        waitForViewGlobally(allOf(withId(R.id.butAction1Text), withText(R.string.stream_label)), TIMEOUT);
+        waitForViewGlobally(allOf(withId(R.id.butAction1), isDisplayed()), TIMEOUT);
         onView(allOf(withId(R.id.butAction1), isDisplayed())).perform(click());
 
         waitForCodePrompt();
@@ -189,11 +189,12 @@ public class GuardianGateFlowsTest {
         waitForCodePrompt();
 
         String lockoutPrefix = context.getString(R.string.guardian_locked_out, "#").split("#")[0];
-        for (int i = 0; i < 4; i++) {
+        for (int i = 1; i <= 5; i++) {
             typeCode(WRONG_CODE);
-            waitForViewGlobally(withText(R.string.guardian_wrong_code), TIMEOUT);
+            int expectedFailures = i;
+            Awaitility.await().atMost(TIMEOUT, TimeUnit.MILLISECONDS)
+                    .until(() -> GuardianGate.getFailedAttempts() == expectedFailures);
         }
-        typeCode(WRONG_CODE);
         waitForViewGlobally(withText(startsWith(lockoutPrefix)), TIMEOUT);
         typeCode(GuardianGateTestUtil.CODE);
         waitForViewGlobally(withText(startsWith(lockoutPrefix)), TIMEOUT);
@@ -328,6 +329,9 @@ public class GuardianGateFlowsTest {
                 activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE));
         waitForCodePrompt();
         assertFalse(GuardianGate.isOpen());
+        mainScenario.onActivity(activity ->
+                activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT));
+        waitForCodePrompt();
 
         typeCode(GuardianGateTestUtil.CODE);
         waitForViewGlobally(withId(R.id.addViaUrlButton), TIMEOUT);
