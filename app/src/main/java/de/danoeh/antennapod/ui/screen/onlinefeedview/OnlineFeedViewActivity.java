@@ -48,6 +48,7 @@ import de.danoeh.antennapod.ui.common.ThemeSwitcher;
 import de.danoeh.antennapod.ui.common.ThemeUtils;
 import de.danoeh.antennapod.ui.preferences.screen.synchronization.AuthenticationDialog;
 import de.danoeh.antennapod.ui.screen.download.DownloadErrorLabel;
+import de.danoeh.antennapod.ui.screen.guardian.GuardianCodeDialog;
 import de.danoeh.antennapod.ui.screen.feed.FeedItemlistFragment;
 import io.reactivex.rxjava3.core.Maybe;
 import io.reactivex.rxjava3.core.Observable;
@@ -117,7 +118,8 @@ public class OnlineFeedViewActivity extends AppCompatActivity {
                 username = savedInstanceState.getString("username");
                 password = savedInstanceState.getString("password");
             }
-            lookupUrlAndDownload(UrlChecker.prepareUrl(feedUrl));
+            String url = UrlChecker.prepareUrl(feedUrl);
+            GuardianCodeDialog.runWhenOpen(this, () -> lookupUrlAndDownload(url), this::finish);
         }
     }
 

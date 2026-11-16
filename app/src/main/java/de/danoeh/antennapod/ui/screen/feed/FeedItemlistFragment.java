@@ -63,6 +63,7 @@ import de.danoeh.antennapod.ui.screen.download.DownloadLogDetailsDialog;
 import de.danoeh.antennapod.ui.screen.download.DownloadLogFragment;
 import de.danoeh.antennapod.ui.screen.episode.ItemPagerFragment;
 import de.danoeh.antennapod.ui.screen.feed.preferences.FeedSettingsFragment;
+import de.danoeh.antennapod.ui.screen.guardian.GuardianCodeDialog;
 import de.danoeh.antennapod.ui.screen.subscriptions.FeedMenuHandler;
 import de.danoeh.antennapod.ui.swipeactions.SwipeActions;
 import io.reactivex.rxjava3.core.Completable;
@@ -554,11 +555,13 @@ public class FeedItemlistFragment extends Fragment implements AdapterView.OnItem
             if (feed == null) {
                 return;
             }
-            DBWriter.setFeedState(getContext(), feed, Feed.STATE_SUBSCRIBED);
-            MainActivityStarter mainActivityStarter = new MainActivityStarter(getContext());
-            mainActivityStarter.withOpenFeed(feed.getId());
-            getActivity().finish();
-            startActivity(mainActivityStarter.getIntent());
+            GuardianCodeDialog.runWhenOpen(requireContext(), () -> {
+                DBWriter.setFeedState(getContext(), feed, Feed.STATE_SUBSCRIBED);
+                MainActivityStarter mainActivityStarter = new MainActivityStarter(getContext());
+                mainActivityStarter.withOpenFeed(feed.getId());
+                getActivity().finish();
+                startActivity(mainActivityStarter.getIntent());
+            });
         });
         viewBinding.header.butRestore.setOnClickListener(v -> {
             if (feed == null) {

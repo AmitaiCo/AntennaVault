@@ -43,6 +43,7 @@ import de.danoeh.antennapod.model.feed.Feed;
 import de.danoeh.antennapod.model.feed.FeedFunding;
 import de.danoeh.antennapod.ui.glide.FastBlurTransformation;
 import de.danoeh.antennapod.ui.screen.feed.preferences.EditUrlSettingsDialog;
+import de.danoeh.antennapod.ui.screen.guardian.GuardianCodeDialog;
 import de.danoeh.antennapod.ui.statistics.StatisticsFragment;
 import de.danoeh.antennapod.ui.statistics.feed.FeedStatisticsDialogFragment;
 import de.danoeh.antennapod.ui.statistics.feed.FeedStatisticsFragment;
@@ -250,14 +251,15 @@ public class FeedInfoFragment extends Fragment implements MaterialToolbar.OnMenu
             viewBinding.supportHeadingLabel.setVisibility(View.GONE);
             viewBinding.supportUrl.setVisibility(View.GONE);
             viewBinding.header.butSubscribe.setVisibility(View.VISIBLE);
-            viewBinding.header.butSubscribe.setOnClickListener(view -> {
-                DBWriter.setFeedState(getContext(), feed, Feed.STATE_SUBSCRIBED);
-                MainActivityStarter mainActivityStarter = new MainActivityStarter(getContext());
-                mainActivityStarter.withOpenFeed(feed.getId());
-                mainActivityStarter.withClearBackStack();
-                getActivity().finish();
-                startActivity(mainActivityStarter.getIntent());
-            });
+            viewBinding.header.butSubscribe.setOnClickListener(view ->
+                    GuardianCodeDialog.runWhenOpen(requireContext(), () -> {
+                        DBWriter.setFeedState(getContext(), feed, Feed.STATE_SUBSCRIBED);
+                        MainActivityStarter mainActivityStarter = new MainActivityStarter(getContext());
+                        mainActivityStarter.withOpenFeed(feed.getId());
+                        mainActivityStarter.withClearBackStack();
+                        getActivity().finish();
+                        startActivity(mainActivityStarter.getIntent());
+                    }));
         } else {
             long feedId = getArguments().getLong(EXTRA_FEED_ID);
             getParentFragmentManager().beginTransaction().replace(R.id.statisticsFragmentContainer,
@@ -303,31 +305,39 @@ public class FeedInfoFragment extends Fragment implements MaterialToolbar.OnMenu
         } else if (item.getItemId() == R.id.share_item) {
             ShareUtils.shareFeedLink(getContext(), feed);
         } else if (item.getItemId() == R.id.reconnect_local_folder) {
-            MaterialAlertDialogBuilder alert = new MaterialAlertDialogBuilder(getContext());
-            alert.setMessage(R.string.reconnect_local_folder_warning);
-            alert.setPositiveButton(android.R.string.ok, (dialog, which) -> {
-                try {
-                    addLocalFolderLauncher.launch(null);
-                } catch (ActivityNotFoundException e) {
-                    Log.e(TAG, "No activity found. Should never happen...");
-                }
-            });
-            alert.setNegativeButton(android.R.string.cancel, null);
-            alert.show();
+            GuardianCodeDialog.runWhenOpen(requireContext(), this::showReconnectLocalFolderDialog);
         } else if (item.getItemId() == R.id.edit_feed_url_item) {
-            new EditUrlSettingsDialog(getActivity(), feed) {
-                @Override
-                protected void setUrl(String url) {
-                    feed.setDownloadUrl(url);
-                    viewBinding.urlLabel.setText(feed.getDownloadUrl());
-                    viewBinding.urlLabel.setCompoundDrawablesRelativeWithIntrinsicBounds(
-                            0, 0, R.drawable.ic_paperclip, 0);
-                }
-            }.show();
+            GuardianCodeDialog.runWhenOpen(requireContext(), this::showEditUrlDialog);
         } else {
             return false;
         }
         return true;
+    }
+
+    private void showReconnectLocalFolderDialog() {
+        MaterialAlertDialogBuilder alert = new MaterialAlertDialogBuilder(getContext());
+        alert.setMessage(R.string.reconnect_local_folder_warning);
+        alert.setPositiveButton(android.R.string.ok, (dialog, which) -> {
+            try {
+                addLocalFolderLauncher.launch(null);
+            } catch (ActivityNotFoundException e) {
+                Log.e(TAG, "No activity found. Should never happen...");
+            }
+        });
+        alert.setNegativeButton(android.R.string.cancel, null);
+        alert.show();
+    }
+
+    private void showEditUrlDialog() {
+        new EditUrlSettingsDialog(getActivity(), feed) {
+            @Override
+            protected void setUrl(String url) {
+                feed.setDownloadUrl(url);
+                viewBinding.urlLabel.setText(feed.getDownloadUrl());
+                viewBinding.urlLabel.setCompoundDrawablesRelativeWithIntrinsicBounds(
+                        0, 0, R.drawable.ic_paperclip, 0);
+            }
+        }.show();
     }
 
     private void addLocalFolderResult(final Uri uri) {

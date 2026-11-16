@@ -32,6 +32,7 @@ import de.danoeh.antennapod.model.feed.Feed;
 import de.danoeh.antennapod.storage.importexport.OpmlElement;
 import de.danoeh.antennapod.storage.importexport.OpmlReader;
 import de.danoeh.antennapod.ui.common.ToolbarActivity;
+import de.danoeh.antennapod.ui.screen.guardian.GuardianCodeDialog;
 import io.reactivex.rxjava3.core.Completable;
 import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
@@ -87,21 +88,24 @@ public class OpmlImportActivity extends ToolbarActivity {
             setResult(RESULT_CANCELED);
             finish();
         });
-        viewBinding.butConfirm.setOnClickListener(v -> {
+        viewBinding.butConfirm.setOnClickListener(v -> GuardianCodeDialog.runWhenOpen(this, () -> {
             viewBinding.progressBar.setVisibility(View.VISIBLE);
             Completable.fromAction(() -> {
                 SparseBooleanArray checked = viewBinding.feedlist.getCheckedItemPositions();
-                for (int i = 0; i < checked.size(); i++) {
-                    if (!checked.valueAt(i)) {
-                        continue;
+                try {
+                    for (int i = 0; i < checked.size(); i++) {
+                        if (!checked.valueAt(i)) {
+                            continue;
+                        }
+                        OpmlElement element = readElements.get(checked.keyAt(i));
+                        Feed feed = new Feed(element.getXmlUrl(), null,
+                                element.getText() != null ? element.getText() : "Unknown podcast");
+                        feed.setItems(Collections.emptyList());
+                        FeedDatabaseWriter.updateFeed(this, feed, false);
                     }
-                    OpmlElement element = readElements.get(checked.keyAt(i));
-                    Feed feed = new Feed(element.getXmlUrl(), null,
-                            element.getText() != null ? element.getText() : "Unknown podcast");
-                    feed.setItems(Collections.emptyList());
-                    FeedDatabaseWriter.updateFeed(this, feed, false);
+                } finally {
+                    FeedUpdateManager.getInstance().runOnce(this);
                 }
-                FeedUpdateManager.getInstance().runOnce(this);
             })
                     .subscribeOn(Schedulers.computation())
                     .observeOn(AndroidSchedulers.mainThread())
@@ -117,7 +121,7 @@ public class OpmlImportActivity extends ToolbarActivity {
                                 viewBinding.progressBar.setVisibility(View.GONE);
                                 Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
                             });
-        });
+        }));
 
         Uri uri = getIntent().getData();
         if (uri != null && uri.toString().startsWith("/")) {

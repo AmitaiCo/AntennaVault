@@ -37,6 +37,7 @@ import de.danoeh.antennapod.storage.importexport.HtmlWriter;
 import de.danoeh.antennapod.storage.importexport.OpmlWriter;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
 import de.danoeh.antennapod.ui.preferences.screen.AnimatedPreferenceFragment;
+import de.danoeh.antennapod.ui.screen.guardian.GuardianCodeDialog;
 import io.reactivex.rxjava3.core.Completable;
 import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
@@ -144,7 +145,7 @@ public class ImportExportPreferencesFragment extends AnimatedPreferenceFragment 
                 });
         findPreference(PREF_DATABASE_IMPORT).setOnPreferenceClickListener(
                 preference -> {
-                    importDatabase();
+                    GuardianCodeDialog.runWhenOpen(requireContext(), this::importDatabase);
                     return true;
                 });
         findPreference(PREF_DATABASE_EXPORT).setOnPreferenceClickListener(
