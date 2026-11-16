@@ -34,6 +34,7 @@ import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
+import static de.test.antennapod.EspressoTestUtils.clickPreference;
 import static de.test.antennapod.EspressoTestUtils.waitForViewGlobally;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -131,10 +132,10 @@ public class GuardianGateUiTest {
     @Test
     public void guardianSettingsNeedTheCodeToTurnTheLockOff() {
         preferenceActivityRule.launchActivity(new Intent());
-        onView(withText(R.string.guardian_pref_title)).perform(click());
+        clickPreference(R.string.guardian_pref_title);
         waitForViewGlobally(withText(R.string.guardian_status_locked), TIMEOUT);
 
-        onView(withText(R.string.guardian_enabled_title)).perform(click());
+        clickPreference(R.string.guardian_enabled_title);
         waitForViewGlobally(withText(R.string.guardian_turn_off_message), TIMEOUT);
         onView(withId(R.id.textInput)).perform(replaceText(GuardianGateTestUtil.CODE));
         onView(withText(R.string.confirm_label)).perform(click());
