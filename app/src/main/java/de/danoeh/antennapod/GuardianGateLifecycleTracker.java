@@ -2,6 +2,7 @@ package de.danoeh.antennapod;
 
 import android.app.Activity;
 import android.app.Application;
+import android.os.Build;
 import android.os.Bundle;
 
 import androidx.annotation.NonNull;
@@ -32,10 +33,14 @@ class GuardianGateLifecycleTracker implements Application.ActivityLifecycleCallb
 
     @Override
     public void onActivityResumed(@NonNull Activity activity) {
+        GuardianGate.onAppForegrounded();
     }
 
     @Override
     public void onActivityPaused(@NonNull Activity activity) {
+        if (Build.VERSION.SDK_INT >= 24 && activity.isInPictureInPictureMode()) {
+            GuardianGate.onAppBackgrounded();
+        }
     }
 
     @Override

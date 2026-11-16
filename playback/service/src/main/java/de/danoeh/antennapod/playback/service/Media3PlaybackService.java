@@ -48,7 +48,6 @@ import de.danoeh.antennapod.playback.base.MediaItemAdapter;
 import de.danoeh.antennapod.playback.base.PlayerStatus;
 import de.danoeh.antennapod.playback.base.RewindAfterPauseUtils;
 import de.danoeh.antennapod.playback.cast.CastPlayerWrapper;
-import de.danoeh.antennapod.playback.service.internal.GuardianPlaybackPolicy;
 import de.danoeh.antennapod.playback.service.internal.ExoPlayerUtils;
 import de.danoeh.antennapod.playback.service.internal.MediaLibrarySessionCallback;
 import de.danoeh.antennapod.playback.service.internal.PlayableUtils;
@@ -58,6 +57,7 @@ import de.danoeh.antennapod.playback.service.internal.ClockSleepTimer;
 import de.danoeh.antennapod.playback.service.internal.EpisodeSleepTimer;
 import de.danoeh.antennapod.storage.database.DBReader;
 import de.danoeh.antennapod.storage.database.DBWriter;
+import de.danoeh.antennapod.storage.preferences.GuardianGate;
 import de.danoeh.antennapod.storage.preferences.PlaybackPreferences;
 import de.danoeh.antennapod.storage.preferences.SleepTimerPreferences;
 import de.danoeh.antennapod.storage.preferences.SleepTimerType;
@@ -389,6 +389,10 @@ public class Media3PlaybackService extends MediaLibraryService {
 
         @Override
         public void onPlayWhenReadyChanged(boolean playWhenReady, int reason) {
+            if (playWhenReady && currentPlayable != null && GuardianGate.isLockedPreview(currentPlayable.getItem())) {
+                player.pause();
+                return;
+            }
             PlaybackService.isRunning = !Util.shouldShowPlayButton(player);
             updatePlaybackPreferences();
         }
@@ -843,8 +847,11 @@ public class Media3PlaybackService extends MediaLibraryService {
         int startPosition = playbackStartPosition;
         queueLoaderDisposable = Maybe.fromCallable(() -> {
             FeedItem nextItem = DBReader.getNextInQueue(item);
-            boolean hasNext = nextItem != null && nextItem.getMedia() != null
-                    && !GuardianPlaybackPolicy.isBlocked(nextItem.getMedia());
+            while (nextItem != null && nextItem.getMedia() != null
+                    && GuardianGate.isLockedPreview(nextItem)) {
+                nextItem = DBReader.getNextInQueue(nextItem);
+            }
+            boolean hasNext = nextItem != null && nextItem.getMedia() != null;
             updateDatabaseAfterPlayback(media, startPosition, ended, wasSkipped, hasNext);
             if (hasNext) {
                 return new Pair<>(nextItem.getMedia(),

@@ -24,8 +24,12 @@ public class GuardianPendingFeeds {
 
     @WorkerThread
     @SuppressLint("ApplySharedPref")
-    public static synchronized void add(@NonNull String url, @Nullable String title) {
+    public static synchronized boolean add(@NonNull String url, @Nullable String title) {
+        if (prefs().contains(url)) {
+            return false;
+        }
         prefs().edit().putString(url, title != null ? title : "").commit();
+        return true;
     }
 
     @NonNull

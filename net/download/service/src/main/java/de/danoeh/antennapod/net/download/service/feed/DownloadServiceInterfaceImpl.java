@@ -1,6 +1,7 @@
 package de.danoeh.antennapod.net.download.service.feed;
 
 import android.content.Context;
+import android.util.Log;
 import androidx.work.Constraints;
 import androidx.work.Data;
 import androidx.work.ExistingWorkPolicy;
@@ -14,6 +15,7 @@ import de.danoeh.antennapod.storage.database.DBWriter;
 import de.danoeh.antennapod.model.feed.FeedItem;
 import de.danoeh.antennapod.model.feed.FeedMedia;
 import de.danoeh.antennapod.net.download.serviceinterface.DownloadServiceInterface;
+import de.danoeh.antennapod.storage.preferences.GuardianGate;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
 import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.schedulers.Schedulers;
@@ -24,7 +26,13 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 public class DownloadServiceInterfaceImpl extends DownloadServiceInterface {
+    private static final String TAG = "DownloadServiceImpl";
+
     public void downloadNow(Context context, FeedItem item, boolean ignoreConstraints) {
+        if (GuardianGate.isLockedPreview(item)) {
+            Log.w(TAG, "Not downloading an episode of an unsubscribed podcast while the guardian gate is closed");
+            return;
+        }
         OneTimeWorkRequest.Builder workRequest = getRequest(context, item);
         workRequest.setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST);
         if (ignoreConstraints) {
@@ -37,6 +45,10 @@ public class DownloadServiceInterfaceImpl extends DownloadServiceInterface {
     }
 
     public void download(Context context, FeedItem item) {
+        if (GuardianGate.isLockedPreview(item)) {
+            Log.w(TAG, "Not downloading an episode of an unsubscribed podcast while the guardian gate is closed");
+            return;
+        }
         if (item.isDownloaded()) {
             return;
         }

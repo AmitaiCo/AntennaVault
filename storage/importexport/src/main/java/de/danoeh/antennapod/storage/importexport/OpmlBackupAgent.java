@@ -10,6 +10,7 @@ import android.util.Log;
 
 import de.danoeh.antennapod.net.download.serviceinterface.FeedUpdateManager;
 import de.danoeh.antennapod.storage.database.PendingSubscriptions;
+import de.danoeh.antennapod.storage.preferences.GuardianPendingFeeds;
 import de.danoeh.antennapod.ui.notifications.GuardianPendingNotification;
 import org.apache.commons.io.IOUtils;
 import org.xmlpull.v1.XmlPullParserException;
@@ -139,13 +140,15 @@ public class OpmlBackupAgent extends BackupAgentHelper {
             try {
                 ArrayList<OpmlElement> opmlElements = new OpmlReader().readDocument(reader);
                 mChecksum = digester == null ? null : digester.digest();
-                int heldFeeds = 0;
+                boolean newlyHeld = false;
                 for (OpmlElement opmlElem : opmlElements) {
-                    if (!PendingSubscriptions.subscribeOrHold(mContext, opmlElem.getXmlUrl(), opmlElem.getText())) {
-                        heldFeeds++;
+                    if (PendingSubscriptions.addOrHold(mContext, opmlElem.getXmlUrl(), opmlElem.getText())) {
+                        newlyHeld = true;
                     }
                 }
-                GuardianPendingNotification.show(mContext, heldFeeds);
+                if (newlyHeld) {
+                    GuardianPendingNotification.show(mContext, GuardianPendingFeeds.count());
+                }
                 FeedUpdateManager.getInstance().runOnce(mContext);
             } catch (XmlPullParserException e) {
                 Log.e(TAG, "Error while parsing the OPML file", e);

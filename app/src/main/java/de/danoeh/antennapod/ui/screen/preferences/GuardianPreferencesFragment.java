@@ -12,6 +12,8 @@ import androidx.preference.Preference;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import de.danoeh.antennapod.R;
@@ -24,7 +26,6 @@ import de.danoeh.antennapod.ui.screen.guardian.GuardianCodeDialog;
 import de.danoeh.antennapod.ui.screen.guardian.GuardianSetCodeDialog;
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.core.Completable;
-import io.reactivex.rxjava3.functions.Action;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 
 public class GuardianPreferencesFragment extends AnimatedPreferenceFragment {
@@ -151,26 +152,42 @@ public class GuardianPreferencesFragment extends AnimatedPreferenceFragment {
 
     private void showPendingFeeds() {
         Context appContext = requireContext().getApplicationContext();
+        Map<String, String> pending = GuardianPendingFeeds.getAll();
+        List<String> urls = new ArrayList<>(pending.keySet());
+        String[] labels = new String[urls.size()];
+        boolean[] checked = new boolean[urls.size()];
+        for (int i = 0; i < urls.size(); i++) {
+            String title = pending.get(urls.get(i));
+            labels[i] = title.isEmpty() ? urls.get(i) : title + "\n" + urls.get(i);
+            checked[i] = true;
+        }
         new MaterialAlertDialogBuilder(requireContext())
                 .setTitle(R.string.guardian_pending_title)
-                .setItems(pendingLabels(GuardianPendingFeeds.getAll()), null)
-                .setPositiveButton(R.string.guardian_pending_approve_all, (dialog, which) ->
-                        GuardianCodeDialog.runWhenOpen(requireContext(), () -> runPendingAction(() -> {
-                            PendingSubscriptions.approveAll(appContext);
-                            FeedUpdateManager.getInstance().runOnce(appContext);
-                        })))
-                .setNegativeButton(R.string.guardian_pending_reject_all, (dialog, which) ->
-                        GuardianCodeDialog.runWhenOpen(requireContext(),
-                                () -> runPendingAction(PendingSubscriptions::rejectAll)))
+                .setMultiChoiceItems(labels, checked, (dialog, which, isChecked) -> checked[which] = isChecked)
+                .setPositiveButton(R.string.guardian_pending_approve, (dialog, which) ->
+                        GuardianCodeDialog.confirmWithCode(requireContext(), R.string.guardian_pending_approve_message,
+                                code -> {
+                                    GuardianGate.Result result = PendingSubscriptions.approve(
+                                            appContext, code, selected(urls, checked));
+                                    FeedUpdateManager.getInstance().runOnce(appContext);
+                                    return result;
+                                }, this::refreshIfAdded))
+                .setNegativeButton(R.string.guardian_pending_reject, (dialog, which) ->
+                        GuardianCodeDialog.confirmWithCode(requireContext(), R.string.guardian_pending_reject_message,
+                                code -> PendingSubscriptions.reject(code, selected(urls, checked)),
+                                this::refreshIfAdded))
                 .setNeutralButton(R.string.cancel_label, null)
                 .show();
     }
 
-    private void runPendingAction(Action action) {
-        Completable.fromAction(action)
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(this::refreshIfAdded, error -> Log.e(TAG, "Failed to handle waiting podcasts", error));
+    private static List<String> selected(List<String> urls, boolean[] checked) {
+        List<String> result = new ArrayList<>();
+        for (int i = 0; i < urls.size(); i++) {
+            if (checked[i]) {
+                result.add(urls.get(i));
+            }
+        }
+        return result;
     }
 
     private String windowLabel(int minutes) {

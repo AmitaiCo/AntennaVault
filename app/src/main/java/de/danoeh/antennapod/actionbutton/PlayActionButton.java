@@ -38,6 +38,9 @@ public class PlayActionButton extends ItemActionButton {
 
     @Override
     public void onClick(Context context) {
+        if (askForGuardianCodeIfPreview(context)) {
+            return;
+        }
         FeedMedia media = item.getMedia();
         if (media == null) {
             return;

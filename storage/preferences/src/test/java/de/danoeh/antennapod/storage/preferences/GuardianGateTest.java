@@ -2,6 +2,8 @@ package de.danoeh.antennapod.storage.preferences;
 
 import android.content.Context;
 
+import de.danoeh.antennapod.model.feed.Feed;
+
 import androidx.test.core.app.ApplicationProvider;
 
 import org.junit.After;
@@ -283,5 +285,28 @@ public class GuardianGateTest {
         GuardianGate.setEnabled(CODE, true);
         assertTrue(GuardianGate.isEnabled());
         assertFalse(GuardianGate.isOpen());
+    }
+
+    @Test
+    public void confirmChecksCodeWithoutOpening() {
+        GuardianGate.setInitialCode(CODE);
+        assertEquals(GuardianGate.Result.ACCEPTED, GuardianGate.confirm(CODE));
+        assertFalse(GuardianGate.isOpen());
+        assertEquals(GuardianGate.Result.WRONG_CODE, GuardianGate.confirm(WRONG_CODE));
+        assertEquals(1, GuardianGate.getFailedAttempts());
+    }
+
+    @Test
+    public void previewIsLockedOnlyWhileGateIsClosed() {
+        GuardianGate.setInitialCode(CODE);
+        Feed preview = new Feed("https://example.com/feed.xml", null, "Preview");
+        preview.setState(Feed.STATE_NOT_SUBSCRIBED);
+        Feed subscribed = new Feed("https://example.com/other.xml", null, "Subscribed");
+
+        assertTrue(GuardianGate.isLockedPreview(preview));
+        assertFalse(GuardianGate.isLockedPreview(subscribed));
+        assertFalse(GuardianGate.isLockedPreview((Feed) null));
+        GuardianGate.verify(CODE);
+        assertFalse(GuardianGate.isLockedPreview(preview));
     }
 }

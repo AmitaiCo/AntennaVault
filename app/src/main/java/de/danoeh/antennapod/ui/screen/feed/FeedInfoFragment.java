@@ -253,6 +253,9 @@ public class FeedInfoFragment extends Fragment implements MaterialToolbar.OnMenu
             viewBinding.header.butSubscribe.setVisibility(View.VISIBLE);
             viewBinding.header.butSubscribe.setOnClickListener(view ->
                     GuardianCodeDialog.runWhenOpen(requireContext(), () -> {
+                        if (!isAdded()) {
+                            return;
+                        }
                         DBWriter.setFeedState(getContext(), feed, Feed.STATE_SUBSCRIBED);
                         MainActivityStarter mainActivityStarter = new MainActivityStarter(getContext());
                         mainActivityStarter.withOpenFeed(feed.getId());

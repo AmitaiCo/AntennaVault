@@ -13,6 +13,7 @@ import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
 import androidx.annotation.WorkerThread;
 import androidx.appcompat.app.AlertDialog;
+import androidx.fragment.app.FragmentActivity;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
@@ -96,6 +97,10 @@ public final class GuardianCodeDialog {
 
     private static boolean isGone(Context context) {
         while (context instanceof ContextWrapper) {
+            if (context instanceof FragmentActivity
+                    && ((FragmentActivity) context).getSupportFragmentManager().isStateSaved()) {
+                return true;
+            }
             if (context instanceof Activity) {
                 Activity activity = (Activity) context;
                 return activity.isFinishing() || activity.isDestroyed();

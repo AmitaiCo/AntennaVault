@@ -112,3 +112,5 @@ First run with no code set: show "Hand the phone to your guardian" and set the c
 - Step 4 wires `onAppBackgrounded()` / `onAppForegrounded()` from `ProcessLifecycleOwner` in `:app`.
 - Tests open the gate with `GuardianGateTestUtil` from `:storage:preferences` test fixtures.
 - Only give the guardian a release build. A debuggable build allows `adb shell run-as` to delete the gate's settings.
+- Podcasts from sync and Android backup restore are always held for approval, even while the gate is open; only a guardian-disabled gate adds them directly. Approving checks the code, adds exactly the selected podcasts and locks again. Rejecting also queues a removal from the sync account so the podcast does not come back.
+- "Locked preview" (an episode of a `NOT_SUBSCRIBED` podcast while the gate is closed) is one rule, `GuardianGate.isLockedPreview`, used by playback, the play/stream/download buttons, downloads and sharing.

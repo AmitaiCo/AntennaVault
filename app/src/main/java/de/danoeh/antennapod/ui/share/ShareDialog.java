@@ -11,6 +11,7 @@ import androidx.annotation.Nullable;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 import de.danoeh.antennapod.databinding.ShareEpisodeDialogBinding;
 import de.danoeh.antennapod.model.feed.FeedItem;
+import de.danoeh.antennapod.storage.preferences.GuardianGate;
 
 public class ShareDialog extends BottomSheetDialogFragment {
     private static final String ARGUMENT_FEED_ITEM = "feedItem";
@@ -39,7 +40,8 @@ public class ShareDialog extends BottomSheetDialogFragment {
         FeedItem item = (FeedItem) getArguments().getSerializable(ARGUMENT_FEED_ITEM);
         ShareEpisodeDialogBinding viewBinding = ShareEpisodeDialogBinding.inflate(inflater);
 
-        if (item.getMedia() != null && item.getMedia().isDownloaded()) {
+        boolean lockedPreview = GuardianGate.isLockedPreview(item);
+        if (item.getMedia() != null && item.getMedia().isDownloaded() && !lockedPreview) {
             viewBinding.mediaFileCardCard.setOnClickListener(v -> {
                 ShareUtils.shareFeedItemFile(getContext(), item.getMedia());
                 dismiss();
@@ -48,7 +50,7 @@ public class ShareDialog extends BottomSheetDialogFragment {
             viewBinding.mediaFileCardCard.setVisibility(View.GONE);
         }
 
-        if (item.getMedia() != null && item.getMedia().getDownloadUrl() != null) {
+        if (item.getMedia() != null && item.getMedia().getDownloadUrl() != null && !lockedPreview) {
             viewBinding.mediaAddressText.setText(item.getMedia().getDownloadUrl());
             viewBinding.mediaAddressCard.setOnClickListener(v -> {
                 ShareUtils.shareLink(getContext(), item.getMedia().getDownloadUrl());

@@ -22,6 +22,7 @@ import junit.framework.AssertionFailedError;
 
 import de.danoeh.antennapod.R;
 import de.danoeh.antennapod.activity.MainActivity;
+import de.danoeh.antennapod.storage.preferences.GuardianGateTestUtil;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
 import de.danoeh.antennapod.ui.screen.drawer.NavDrawerFragment;
 import org.awaitility.Awaitility;
@@ -187,6 +188,7 @@ public class EspressoTestUtils {
                 .edit()
                 .putString(UserPreferences.PREF_UPDATE_INTERVAL_MINUTES, "0")
                 .commit();
+        GuardianGateTestUtil.configureOpen(InstrumentationRegistry.getInstrumentation().getTargetContext());
     }
 
     public static void setLaunchScreen(String tag) {

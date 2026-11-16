@@ -11,7 +11,9 @@ import de.danoeh.antennapod.playback.service.PlaybackStatus;
 import de.danoeh.antennapod.model.feed.FeedItem;
 import de.danoeh.antennapod.model.feed.FeedMedia;
 import de.danoeh.antennapod.net.download.serviceinterface.DownloadServiceInterface;
+import de.danoeh.antennapod.storage.preferences.GuardianGate;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
+import de.danoeh.antennapod.ui.screen.guardian.GuardianCodeDialog;
 
 public abstract class ItemActionButton {
     FeedItem item;
@@ -27,6 +29,14 @@ public abstract class ItemActionButton {
     public abstract int getDrawable();
 
     public abstract void onClick(Context context);
+
+    boolean askForGuardianCodeIfPreview(Context context) {
+        if (!GuardianGate.isLockedPreview(item)) {
+            return false;
+        }
+        GuardianCodeDialog.runWhenOpen(context, () -> onClick(context));
+        return true;
+    }
 
     public int getVisibility() {
         return View.VISIBLE;

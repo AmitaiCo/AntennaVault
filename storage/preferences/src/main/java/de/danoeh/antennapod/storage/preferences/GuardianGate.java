@@ -6,8 +6,12 @@ import android.content.SharedPreferences;
 import android.util.Base64;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 import androidx.annotation.WorkerThread;
+
+import de.danoeh.antennapod.model.feed.Feed;
+import de.danoeh.antennapod.model.feed.FeedItem;
 
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
@@ -74,6 +78,14 @@ public class GuardianGate {
         return !isEnabled() || getOpenRemainingMillis() > 0;
     }
 
+    public static boolean isLockedPreview(@Nullable Feed feed) {
+        return feed != null && feed.getState() == Feed.STATE_NOT_SUBSCRIBED && !isOpen();
+    }
+
+    public static boolean isLockedPreview(@Nullable FeedItem item) {
+        return item != null && isLockedPreview(item.getFeed());
+    }
+
     public static void requireOpen(@NonNull String action) {
         if (!isOpen()) {
             throw new GuardianGateClosedException(action);
@@ -105,17 +117,25 @@ public class GuardianGate {
     @NonNull
     @WorkerThread
     @SuppressLint("ApplySharedPref")
-    public static synchronized Result verify(@NonNull String code) {
+    public static Result verify(@NonNull String code) {
         Result result = checkCode(code);
         if (result == Result.ACCEPTED) {
-            long now = clock.now();
-            prefs().edit()
-                    .putLong(KEY_OPENED_AT, now)
-                    .putLong(KEY_OPEN_UNTIL, now + TimeUnit.MINUTES.toMillis(getWindowMinutes()))
-                    .putLong(KEY_BACKGROUND_SINCE, 0)
-                    .commit();
+            synchronized (GuardianGate.class) {
+                long now = clock.now();
+                prefs().edit()
+                        .putLong(KEY_OPENED_AT, now)
+                        .putLong(KEY_OPEN_UNTIL, now + TimeUnit.MINUTES.toMillis(getWindowMinutes()))
+                        .putLong(KEY_BACKGROUND_SINCE, 0)
+                        .commit();
+            }
         }
         return result;
+    }
+
+    @NonNull
+    @WorkerThread
+    public static Result confirm(@NonNull String code) {
+        return checkCode(code);
     }
 
     @SuppressLint("ApplySharedPref")
@@ -128,20 +148,20 @@ public class GuardianGate {
     }
 
     @WorkerThread
-    public static synchronized void setInitialCode(@NonNull String code) {
+    public static void setInitialCode(@NonNull String code) {
         if (isConfigured()) {
             throw new IllegalStateException("A guardian code is already set");
         }
-        storeCode(code);
+        storeCode(code, true);
     }
 
     @NonNull
     @WorkerThread
-    public static synchronized Result changeCode(@NonNull String currentCode, @NonNull String newCode) {
+    public static Result changeCode(@NonNull String currentCode, @NonNull String newCode) {
         checkCodeLength(newCode);
         Result result = checkCode(currentCode);
         if (result == Result.ACCEPTED) {
-            storeCode(newCode);
+            storeCode(newCode, false);
         }
         return result;
     }
@@ -149,10 +169,12 @@ public class GuardianGate {
     @NonNull
     @WorkerThread
     @SuppressLint("ApplySharedPref")
-    public static synchronized Result setEnabled(@NonNull String code, boolean enabled) {
+    public static Result setEnabled(@NonNull String code, boolean enabled) {
         Result result = checkCode(code);
         if (result == Result.ACCEPTED) {
-            prefs().edit().putBoolean(KEY_DISABLED, !enabled).commit();
+            synchronized (GuardianGate.class) {
+                prefs().edit().putBoolean(KEY_DISABLED, !enabled).commit();
+            }
         }
         return result;
     }
@@ -160,13 +182,15 @@ public class GuardianGate {
     @NonNull
     @WorkerThread
     @SuppressLint("ApplySharedPref")
-    public static synchronized Result setWindowMinutes(@NonNull String code, int minutes) {
+    public static Result setWindowMinutes(@NonNull String code, int minutes) {
         if (minutes < 1) {
             throw new IllegalArgumentException("Window must be at least one minute");
         }
         Result result = checkCode(code);
         if (result == Result.ACCEPTED) {
-            prefs().edit().putInt(KEY_WINDOW_MINUTES, minutes).commit();
+            synchronized (GuardianGate.class) {
+                prefs().edit().putInt(KEY_WINDOW_MINUTES, minutes).commit();
+            }
         }
         return result;
     }
@@ -200,27 +224,38 @@ public class GuardianGate {
 
     @SuppressLint("ApplySharedPref")
     private static Result checkCode(String code) {
-        if (!isConfigured()) {
-            return Result.NOT_CONFIGURED;
+        byte[] salt;
+        byte[] expected;
+        int iterations;
+        synchronized (GuardianGate.class) {
+            if (!isConfigured()) {
+                return Result.NOT_CONFIGURED;
+            }
+            if (getLockoutRemainingMillis() > 0) {
+                return Result.LOCKED_OUT;
+            }
+            salt = Base64.decode(prefs().getString(KEY_SALT, ""), Base64.NO_WRAP);
+            expected = Base64.decode(prefs().getString(KEY_HASH, ""), Base64.NO_WRAP);
+            iterations = prefs().getInt(KEY_ITERATIONS, ITERATIONS);
         }
-        if (getLockoutRemainingMillis() > 0) {
-            return Result.LOCKED_OUT;
+        boolean matches = MessageDigest.isEqual(expected, hash(code, salt, iterations));
+        synchronized (GuardianGate.class) {
+            if (getLockoutRemainingMillis() > 0) {
+                return Result.LOCKED_OUT;
+            }
+            if (matches) {
+                prefs().edit().putInt(KEY_FAILED_COUNT, 0).putLong(KEY_LOCKOUT_UNTIL, 0).commit();
+                return Result.ACCEPTED;
+            }
+            int failed = prefs().getInt(KEY_FAILED_COUNT, 0) + 1;
+            SharedPreferences.Editor editor = prefs().edit().putInt(KEY_FAILED_COUNT, failed);
+            if (failed % ATTEMPTS_BEFORE_LOCKOUT == 0) {
+                long minutes = lockoutMinutes(failed / ATTEMPTS_BEFORE_LOCKOUT);
+                editor.putLong(KEY_LOCKOUT_UNTIL, clock.now() + TimeUnit.MINUTES.toMillis(minutes));
+            }
+            editor.commit();
+            return Result.WRONG_CODE;
         }
-        byte[] salt = Base64.decode(prefs().getString(KEY_SALT, ""), Base64.NO_WRAP);
-        byte[] expected = Base64.decode(prefs().getString(KEY_HASH, ""), Base64.NO_WRAP);
-        int iterations = prefs().getInt(KEY_ITERATIONS, ITERATIONS);
-        if (MessageDigest.isEqual(expected, hash(code, salt, iterations))) {
-            prefs().edit().putInt(KEY_FAILED_COUNT, 0).putLong(KEY_LOCKOUT_UNTIL, 0).commit();
-            return Result.ACCEPTED;
-        }
-        int failed = prefs().getInt(KEY_FAILED_COUNT, 0) + 1;
-        SharedPreferences.Editor editor = prefs().edit().putInt(KEY_FAILED_COUNT, failed);
-        if (failed % ATTEMPTS_BEFORE_LOCKOUT == 0) {
-            long minutes = lockoutMinutes(failed / ATTEMPTS_BEFORE_LOCKOUT);
-            editor.putLong(KEY_LOCKOUT_UNTIL, clock.now() + TimeUnit.MINUTES.toMillis(minutes));
-        }
-        editor.commit();
-        return Result.WRONG_CODE;
     }
 
     private static long lockoutMinutes(int round) {
@@ -238,18 +273,23 @@ public class GuardianGate {
     }
 
     @SuppressLint("ApplySharedPref")
-    private static void storeCode(String code) {
+    private static void storeCode(String code, boolean onlyIfUnconfigured) {
         checkCodeLength(code);
         byte[] salt = new byte[SALT_BYTES];
         new SecureRandom().nextBytes(salt);
         byte[] hash = hash(code, salt, ITERATIONS);
-        prefs().edit()
-                .putString(KEY_SALT, Base64.encodeToString(salt, Base64.NO_WRAP))
-                .putString(KEY_HASH, Base64.encodeToString(hash, Base64.NO_WRAP))
-                .putInt(KEY_ITERATIONS, ITERATIONS)
-                .putInt(KEY_FAILED_COUNT, 0)
-                .putLong(KEY_LOCKOUT_UNTIL, 0)
-                .commit();
+        synchronized (GuardianGate.class) {
+            if (onlyIfUnconfigured && isConfigured()) {
+                throw new IllegalStateException("A guardian code is already set");
+            }
+            prefs().edit()
+                    .putString(KEY_SALT, Base64.encodeToString(salt, Base64.NO_WRAP))
+                    .putString(KEY_HASH, Base64.encodeToString(hash, Base64.NO_WRAP))
+                    .putInt(KEY_ITERATIONS, ITERATIONS)
+                    .putInt(KEY_FAILED_COUNT, 0)
+                    .putLong(KEY_LOCKOUT_UNTIL, 0)
+                    .commit();
+        }
     }
 
     private static byte[] hash(String code, byte[] salt, int iterations) {

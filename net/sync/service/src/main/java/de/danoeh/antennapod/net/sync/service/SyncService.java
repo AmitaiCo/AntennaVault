@@ -39,6 +39,7 @@ import de.danoeh.antennapod.storage.database.DBReader;
 import de.danoeh.antennapod.storage.database.DBWriter;
 import de.danoeh.antennapod.storage.database.PendingSubscriptions;
 import de.danoeh.antennapod.storage.database.LongList;
+import de.danoeh.antennapod.storage.preferences.GuardianPendingFeeds;
 import de.danoeh.antennapod.storage.preferences.SynchronizationCredentials;
 import de.danoeh.antennapod.storage.preferences.SynchronizationSettings;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
@@ -152,7 +153,7 @@ public class SyncService extends Worker {
         List<String> queuedAddedFeeds = synchronizationQueueStorage.getQueuedAddedFeeds();
 
         Log.d(TAG, "Downloaded subscription changes: " + subscriptionChanges);
-        int heldFeeds = 0;
+        boolean newlyHeld = false;
         for (String downloadUrl : subscriptionChanges.getAdded()) {
             if (!downloadUrl.startsWith("http")) { // Also matches https
                 Log.d(TAG, "Skipping url: " + downloadUrl);
@@ -168,14 +169,17 @@ public class SyncService extends Worker {
                 continue;
             }
 
-            if (!PendingSubscriptions.subscribeOrHold(getApplicationContext(), downloadUrl, null)) {
-                heldFeeds++;
+            if (PendingSubscriptions.addOrHold(getApplicationContext(), downloadUrl, null)) {
+                newlyHeld = true;
             }
         }
-        GuardianPendingNotification.show(getApplicationContext(), heldFeeds);
+        if (newlyHeld) {
+            GuardianPendingNotification.show(getApplicationContext(), GuardianPendingFeeds.count());
+        }
 
         // remove subscription if not just subscribed (again)
         for (String downloadUrl : subscriptionChanges.getRemoved()) {
+            PendingSubscriptions.forget(downloadUrl);
             if (!queuedAddedFeeds.contains(downloadUrl)) {
                 DBWriter.removeFeedWithDownloadUrl(getApplicationContext(), downloadUrl);
             }

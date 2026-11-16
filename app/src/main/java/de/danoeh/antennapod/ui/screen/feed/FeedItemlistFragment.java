@@ -556,6 +556,9 @@ public class FeedItemlistFragment extends Fragment implements AdapterView.OnItem
                 return;
             }
             GuardianCodeDialog.runWhenOpen(requireContext(), () -> {
+                if (!isAdded()) {
+                    return;
+                }
                 DBWriter.setFeedState(getContext(), feed, Feed.STATE_SUBSCRIBED);
                 MainActivityStarter mainActivityStarter = new MainActivityStarter(getContext());
                 mainActivityStarter.withOpenFeed(feed.getId());

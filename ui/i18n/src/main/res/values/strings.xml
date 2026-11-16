@@ -668,8 +668,10 @@
     <string name="guardian_later">Later</string>
     <string name="guardian_pending_notification_title">Podcasts waiting for the guardian</string>
     <string name="guardian_pending_title">Waiting for approval</string>
-    <string name="guardian_pending_approve_all">Approve all</string>
-    <string name="guardian_pending_reject_all">Reject all</string>
+    <string name="guardian_pending_approve">Approve</string>
+    <string name="guardian_pending_reject">Reject</string>
+    <string name="guardian_pending_approve_message">Enter the code to subscribe to the selected podcasts.</string>
+    <string name="guardian_pending_reject_message">Enter the code to discard the selected podcasts. They are also removed from your sync account.</string>
     <plurals name="guardian_pending_notification_text">
         <item quantity="one">%d podcast from sync or backup is waiting for approval in Settings → Guardian.</item>
         <item quantity="other">%d podcasts from sync or backup are waiting for approval in Settings → Guardian.</item>

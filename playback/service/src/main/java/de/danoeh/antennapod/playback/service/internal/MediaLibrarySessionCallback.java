@@ -35,6 +35,7 @@ import de.danoeh.antennapod.playback.base.RewindAfterPauseUtils;
 import de.danoeh.antennapod.ui.appstartintent.MediaButtonStarter;
 import de.danoeh.antennapod.playback.service.R;
 import de.danoeh.antennapod.storage.database.DBReader;
+import de.danoeh.antennapod.storage.preferences.GuardianGate;
 import de.danoeh.antennapod.storage.preferences.PlaybackPreferences;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
 import de.danoeh.antennapod.event.playback.SleepTimerUpdatedEvent;
@@ -262,7 +263,7 @@ public class MediaLibrarySessionCallback implements MediaLibraryService.MediaLib
             Maybe.fromCallable(() -> {
                 List<FeedItem> results = DBReader.searchFeedItems(0, searchQuery, FeedItemFilter.unfiltered());
                 for (FeedItem result : results) {
-                    if (result.getMedia() != null && !GuardianPlaybackPolicy.isBlocked(result.getMedia())) {
+                    if (result.getMedia() != null && !GuardianGate.isLockedPreview(result)) {
                         return result.getMedia();
                     }
                 }
@@ -361,7 +362,7 @@ public class MediaLibrarySessionCallback implements MediaLibraryService.MediaLib
                     media = items.get(0).getMedia();
                 }
             }
-            return media != null && GuardianPlaybackPolicy.isBlocked(media) ? null : media;
+            return media != null && GuardianGate.isLockedPreview(media.getItem()) ? null : media;
         })
                 .subscribeOn(Schedulers.io())
                 .subscribe(
@@ -544,7 +545,7 @@ public class MediaLibrarySessionCallback implements MediaLibraryService.MediaLib
                     Log.e(TAG, "Media not found for ID: " + mediaId);
                     continue;
                 }
-                if (GuardianPlaybackPolicy.isBlocked(media)) {
+                if (GuardianGate.isLockedPreview(media.getItem())) {
                     Log.w(TAG, "Not playing an episode of an unsubscribed podcast while the guardian gate is closed");
                     continue;
                 }

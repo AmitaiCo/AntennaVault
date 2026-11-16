@@ -120,18 +120,23 @@ public class OnlineFeedViewActivity extends AppCompatActivity {
                 password = savedInstanceState.getString("password");
             }
             String url = UrlChecker.prepareUrl(feedUrl);
-            subscriptionCheck = Maybe.fromCallable(
-                    () -> UrlChecker.containsUrl(DBReader.getFeedListDownloadUrls(true), url))
+            subscriptionCheck = Maybe.fromCallable(() -> findSubscribedFeed(url))
                     .subscribeOn(Schedulers.io())
                     .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe(alreadySubscribed -> {
-                        if (alreadySubscribed) {
-                            lookupUrlAndDownload(url);
-                        } else {
-                            GuardianCodeDialog.runWhenOpen(this, () -> lookupUrlAndDownload(url), this::finish);
-                        }
-                    }, error -> GuardianCodeDialog.runWhenOpen(this, () -> lookupUrlAndDownload(url), this::finish));
+                    .subscribe(feed -> openFeed(feed.getId()),
+                        error -> GuardianCodeDialog.runWhenOpen(this, () -> lookupUrlAndDownload(url), this::finish),
+                        () -> GuardianCodeDialog.runWhenOpen(this, () -> lookupUrlAndDownload(url), this::finish));
         }
+    }
+
+    @Nullable
+    private static Feed findSubscribedFeed(String url) {
+        for (Feed feed : DBReader.getFeedList()) {
+            if (feed.getState() == Feed.STATE_SUBSCRIBED && UrlChecker.urlEquals(feed.getDownloadUrl(), url)) {
+                return feed;
+            }
+        }
+        return null;
     }
 
     private void showNoPodcastFoundError() {

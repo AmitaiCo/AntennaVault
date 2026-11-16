@@ -481,6 +481,11 @@ public class MainActivity extends CastEnabledActivity implements NavigationToolb
 
     public void loadFragment(String tag, Bundle args) {
         if (AddFeedFragment.TAG.equals(tag) && !GuardianGate.isOpen()) {
+            boolean nothingShown = getSupportFragmentManager().findFragmentById(R.id.main_content_view) == null;
+            if (nothingShown && !GuardianGate.isConfigured()) {
+                loadFragment(SubscriptionFragment.TAG, null);
+                return;
+            }
             GuardianCodeDialog.runWhenOpen(this, () -> loadFragment(tag, args), () -> {
                 if (getSupportFragmentManager().findFragmentById(R.id.main_content_view) == null) {
                     loadFragment(SubscriptionFragment.TAG, null);
@@ -769,6 +774,9 @@ public class MainActivity extends CastEnabledActivity implements NavigationToolb
             if (tag != null) {
                 if (intent.getBooleanExtra(MainActivityStarter.EXTRA_CLEAR_BACK_STACK, true)) {
                     loadFragment(tag, null);
+                } else if (AddFeedFragment.TAG.equals(tag)) {
+                    GuardianCodeDialog.runWhenOpen(this, () ->
+                            loadChildFragment(createFragmentInstance(tag, args), TransitionEffect.NONE, tag));
                 } else {
                     loadChildFragment(createFragmentInstance(tag, args), TransitionEffect.NONE, tag);
                 }

@@ -16,14 +16,16 @@ import de.danoeh.antennapod.databinding.GuardianSetCodeDialogBinding;
 import de.danoeh.antennapod.storage.preferences.GuardianGate;
 
 public final class GuardianSetCodeDialog {
+    private static boolean firstRunPromptShown = false;
 
     private GuardianSetCodeDialog() {
     }
 
     public static void showFirstRunPromptIfNeeded(@NonNull Context context) {
-        if (GuardianGate.isConfigured()) {
+        if (GuardianGate.isConfigured() || firstRunPromptShown) {
             return;
         }
+        firstRunPromptShown = true;
         new MaterialAlertDialogBuilder(context)
                 .setTitle(R.string.guardian_first_run_title)
                 .setMessage(R.string.guardian_first_run_message)

@@ -7,11 +7,14 @@ import androidx.annotation.Nullable;
 import androidx.annotation.WorkerThread;
 
 import de.danoeh.antennapod.model.feed.Feed;
+import de.danoeh.antennapod.net.sync.serviceinterface.SynchronizationQueue;
 import de.danoeh.antennapod.storage.preferences.GuardianGate;
 import de.danoeh.antennapod.storage.preferences.GuardianPendingFeeds;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
 public final class PendingSubscriptions {
 
@@ -19,35 +22,77 @@ public final class PendingSubscriptions {
     }
 
     @WorkerThread
-    public static boolean subscribeOrHold(@NonNull Context context, @NonNull String url, @Nullable String title) {
-        if (!GuardianGate.isOpen()) {
-            GuardianPendingFeeds.add(url, title);
+    public static boolean addOrHold(@NonNull Context context, @NonNull String url, @Nullable String title) {
+        if (GuardianGate.isConfigured() && !GuardianGate.isEnabled()) {
+            subscribe(context, url, title);
             return false;
         }
-        subscribe(context, url, title);
-        return true;
+        return GuardianPendingFeeds.add(url, title);
     }
 
+    @NonNull
     @WorkerThread
-    public static void approveAll(@NonNull Context context) {
-        GuardianGate.requireOpen("approve waiting podcasts");
-        for (Map.Entry<String, String> entry : GuardianPendingFeeds.getAll().entrySet()) {
-            subscribe(context, entry.getKey(), entry.getValue());
-            GuardianPendingFeeds.remove(entry.getKey());
+    public static GuardianGate.Result approve(@NonNull Context context, @NonNull String code,
+                                              @NonNull Collection<String> urls) {
+        GuardianGate.Result result = GuardianGate.verify(code);
+        if (result != GuardianGate.Result.ACCEPTED) {
+            return result;
         }
+        try {
+            Map<String, String> pending = GuardianPendingFeeds.getAll();
+            for (String url : urls) {
+                if (pending.containsKey(url)) {
+                    subscribe(context, url, pending.get(url));
+                    GuardianPendingFeeds.remove(url);
+                }
+            }
+        } finally {
+            GuardianGate.lock();
+        }
+        return result;
     }
 
+    @NonNull
     @WorkerThread
-    public static void rejectAll() {
-        GuardianGate.requireOpen("reject waiting podcasts");
-        for (String url : GuardianPendingFeeds.getAll().keySet()) {
+    public static GuardianGate.Result reject(@NonNull String code, @NonNull Collection<String> urls) {
+        GuardianGate.Result result = GuardianGate.confirm(code);
+        if (result != GuardianGate.Result.ACCEPTED) {
+            return result;
+        }
+        for (String url : urls) {
             GuardianPendingFeeds.remove(url);
+            SynchronizationQueue.getInstance().enqueueFeedRemoved(url);
         }
+        return result;
+    }
+
+    @WorkerThread
+    public static void forget(@NonNull String url) {
+        GuardianPendingFeeds.remove(url);
     }
 
     private static void subscribe(Context context, String url, @Nullable String title) {
-        Feed feed = new Feed(url, null, title == null || title.isEmpty() ? url : title);
-        feed.setItems(Collections.emptyList());
-        FeedDatabaseWriter.updateFeed(context, feed, false);
+        Feed existing = findByDownloadUrl(url);
+        if (existing == null) {
+            Feed feed = new Feed(url, null, title == null || title.isEmpty() ? url : title);
+            feed.setItems(Collections.emptyList());
+            FeedDatabaseWriter.updateFeed(context, feed, false);
+        } else if (existing.getState() == Feed.STATE_NOT_SUBSCRIBED) {
+            try {
+                DBWriter.setFeedState(context, existing, Feed.STATE_SUBSCRIBED).get();
+            } catch (InterruptedException | ExecutionException e) {
+                throw new IllegalStateException(e);
+            }
+        }
+    }
+
+    @Nullable
+    private static Feed findByDownloadUrl(String url) {
+        for (Feed feed : DBReader.getFeedList()) {
+            if (url.equals(feed.getDownloadUrl())) {
+                return feed;
+            }
+        }
+        return null;
     }
 }
