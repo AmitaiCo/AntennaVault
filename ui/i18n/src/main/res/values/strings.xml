@@ -637,7 +637,7 @@
     <string name="guardian_locked_out">Too many wrong codes. Try again in %1$s.</string>
     <string name="guardian_import_interrupted">The guardian code window closed before the import finished. Some podcasts were not added.</string>
     <string name="guardian_not_configured_title">No guardian code yet</string>
-    <string name="guardian_not_configured_message">Adding podcasts is locked until a guardian sets a code.</string>
+    <string name="guardian_not_configured_message">Adding podcasts is locked until a guardian sets a code in Settings → Guardian.</string>
     <string name="guardian_pref_title">Guardian</string>
     <string name="guardian_pref_summary">Code needed to add new podcasts</string>
     <string name="guardian_status_title">Status</string>

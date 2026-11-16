@@ -6,7 +6,6 @@ import android.view.View;
 import android.widget.Button;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
 import androidx.appcompat.app.AlertDialog;
 
@@ -15,11 +14,6 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import de.danoeh.antennapod.R;
 import de.danoeh.antennapod.databinding.GuardianSetCodeDialogBinding;
 import de.danoeh.antennapod.storage.preferences.GuardianGate;
-import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
-import io.reactivex.rxjava3.core.Single;
-import io.reactivex.rxjava3.schedulers.Schedulers;
-
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class GuardianSetCodeDialog {
 
@@ -34,36 +28,28 @@ public final class GuardianSetCodeDialog {
                 .setTitle(R.string.guardian_first_run_title)
                 .setMessage(R.string.guardian_first_run_message)
                 .setPositiveButton(R.string.guardian_set_up, (dialog, which) ->
-                        showInitialSetup(context, () -> { }, null))
+                        showInitialSetup(context, () -> { }))
                 .setNegativeButton(R.string.guardian_later, null)
                 .show();
     }
 
-    public static void showInitialSetup(@NonNull Context context, @NonNull Runnable onDone,
-                                        @Nullable Runnable onCancel) {
-        show(context, false, R.string.guardian_set_code_title, onDone, onCancel);
+    public static void showInitialSetup(@NonNull Context context, @NonNull Runnable onDone) {
+        show(context, false, R.string.guardian_set_code_title, onDone);
     }
 
     public static void showChangeCode(@NonNull Context context, @NonNull Runnable onDone) {
-        show(context, true, R.string.guardian_change_code_title, onDone, null);
+        show(context, true, R.string.guardian_change_code_title, onDone);
     }
 
-    private static void show(Context context, boolean changing, @StringRes int title,
-                             Runnable onDone, @Nullable Runnable onCancel) {
+    private static void show(Context context, boolean changing, @StringRes int title, Runnable onDone) {
         GuardianSetCodeDialogBinding binding = GuardianSetCodeDialogBinding.inflate(LayoutInflater.from(context));
         binding.currentCodeLayout.setVisibility(changing ? View.VISIBLE : View.GONE);
 
-        AtomicBoolean done = new AtomicBoolean(false);
         AlertDialog dialog = new MaterialAlertDialogBuilder(context)
                 .setTitle(title)
                 .setView(binding.getRoot())
                 .setPositiveButton(R.string.confirm_label, null)
                 .setNegativeButton(R.string.cancel_label, null)
-                .setOnDismissListener(d -> {
-                    if (!done.get() && onCancel != null) {
-                        onCancel.run();
-                    }
-                })
                 .show();
 
         Button saveButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
@@ -82,35 +68,23 @@ public final class GuardianSetCodeDialog {
                 binding.confirmCodeLayout.setError(context.getString(R.string.guardian_codes_do_not_match));
                 return;
             }
-            saveButton.setEnabled(false);
             String currentCode = String.valueOf(binding.currentCode.getText());
-            Single.fromCallable(() -> changing
-                            ? GuardianGate.changeCode(currentCode, newCode)
-                            : setInitialCodeAndOpen(newCode))
-                    .subscribeOn(Schedulers.io())
-                    .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe(result -> {
-                        if (!dialog.isShowing() || GuardianCodeDialog.isGone(context)) {
-                            return;
-                        }
-                        saveButton.setEnabled(true);
+            GuardianCodeDialog.checkInBackground(context, dialog, saveButton,
+                    () -> changing ? GuardianGate.changeCode(currentCode, newCode) : setInitialCode(newCode),
+                    result -> {
                         if (result == GuardianGate.Result.ACCEPTED) {
-                            done.set(true);
                             dialog.dismiss();
                             onDone.run();
                         } else {
                             binding.currentCode.setText("");
                             binding.currentCodeLayout.setError(GuardianCodeDialog.errorMessage(context, result));
                         }
-                    }, error -> {
-                        saveButton.setEnabled(true);
-                        binding.newCodeLayout.setError(error.getLocalizedMessage());
-                    });
+                    }, error -> binding.newCodeLayout.setError(error.getLocalizedMessage()), false);
         });
     }
 
-    private static GuardianGate.Result setInitialCodeAndOpen(String code) {
+    private static GuardianGate.Result setInitialCode(String code) {
         GuardianGate.setInitialCode(code);
-        return GuardianGate.verify(code);
+        return GuardianGate.Result.ACCEPTED;
     }
 }

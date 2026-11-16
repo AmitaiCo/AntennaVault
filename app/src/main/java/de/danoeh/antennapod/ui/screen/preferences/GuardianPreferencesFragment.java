@@ -1,7 +1,10 @@
 package de.danoeh.antennapod.ui.screen.preferences;
 
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.format.DateUtils;
+import android.util.Log;
 
 import androidx.preference.Preference;
 
@@ -12,6 +15,9 @@ import de.danoeh.antennapod.storage.preferences.GuardianGate;
 import de.danoeh.antennapod.ui.preferences.screen.AnimatedPreferenceFragment;
 import de.danoeh.antennapod.ui.screen.guardian.GuardianCodeDialog;
 import de.danoeh.antennapod.ui.screen.guardian.GuardianSetCodeDialog;
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
+import io.reactivex.rxjava3.core.Completable;
+import io.reactivex.rxjava3.schedulers.Schedulers;
 
 public class GuardianPreferencesFragment extends AnimatedPreferenceFragment {
     private static final String PREF_STATUS = "guardianStatus";
@@ -20,13 +26,23 @@ public class GuardianPreferencesFragment extends AnimatedPreferenceFragment {
     private static final String PREF_ENABLED = "guardianEnabled";
     private static final String PREF_WINDOW = "guardianWindow";
     private static final String PREF_CHANGE_CODE = "guardianChangeCode";
+    private static final String TAG = "GuardianPrefFragment";
     private static final int[] WINDOW_OPTIONS_MINUTES = {5, 10, 15, 30, 60};
+
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private final Runnable refreshTicker = new Runnable() {
+        @Override
+        public void run() {
+            refresh();
+            handler.postDelayed(this, DateUtils.SECOND_IN_MILLIS);
+        }
+    };
 
     @Override
     public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
         addPreferencesFromResource(R.xml.preferences_guardian);
         findPreference(PREF_SET_CODE).setOnPreferenceClickListener(preference -> {
-            GuardianSetCodeDialog.showInitialSetup(requireContext(), this::refresh, null);
+            GuardianSetCodeDialog.showInitialSetup(requireContext(), this::refresh);
             return true;
         });
         findPreference(PREF_CHANGE_CODE).setOnPreferenceClickListener(preference -> {
@@ -34,8 +50,10 @@ public class GuardianPreferencesFragment extends AnimatedPreferenceFragment {
             return true;
         });
         findPreference(PREF_LOCK_NOW).setOnPreferenceClickListener(preference -> {
-            GuardianGate.lock();
-            refresh();
+            Completable.fromAction(GuardianGate::lock)
+                    .subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(this::refresh, error -> Log.e(TAG, "Failed to lock", error));
             return true;
         });
         findPreference(PREF_ENABLED).setOnPreferenceClickListener(preference -> {
@@ -60,7 +78,13 @@ public class GuardianPreferencesFragment extends AnimatedPreferenceFragment {
     @Override
     public void onResume() {
         super.onResume();
-        refresh();
+        refreshTicker.run();
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        handler.removeCallbacks(refreshTicker);
     }
 
     private void refresh() {
