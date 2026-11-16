@@ -5,6 +5,13 @@ on:
     branches: [ guardian-gate ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: "Build FreeDebug APK"
@@ -24,6 +31,7 @@ jobs:
             ~/.gradle/caches
             ~/.gradle/wrapper
           key: gradle-${{ hashFiles('**/*.gradle*') }}-${{ hashFiles('**/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-
       - name: Configure parallel build
         run: echo "org.gradle.parallel=true" >> local.properties
       - name: Install stable debug keystore
@@ -37,7 +45,7 @@ jobs:
         run: ./gradlew :app:assembleFreeDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: antennavault-free-debug.apk
+          name: antennavault-free-debug
           path: app/build/outputs/apk/free/debug/app-free-debug.apk
 
   unit-test:
@@ -58,6 +66,7 @@ jobs:
             ~/.gradle/caches
             ~/.gradle/wrapper
           key: gradle-${{ hashFiles('**/*.gradle*') }}-${{ hashFiles('**/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-
       - name: Configure parallel build
         run: echo "org.gradle.parallel=true" >> local.properties
       - name: Test
@@ -81,6 +90,7 @@ jobs:
             ~/.gradle/caches
             ~/.gradle/wrapper
           key: gradle-${{ hashFiles('**/*.gradle*') }}-${{ hashFiles('**/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-
       - name: Configure parallel build
         run: echo "org.gradle.parallel=true" >> local.properties
       - name: Checkstyle and lint

@@ -7,7 +7,6 @@ import android.net.Uri;
 import android.os.ParcelFileDescriptor;
 import android.text.format.Formatter;
 import android.util.Log;
-import de.danoeh.antennapod.storage.database.GuardianGateClosedException;
 import de.danoeh.antennapod.storage.database.PodDBAdapter;
 import de.danoeh.antennapod.storage.preferences.GuardianGate;
 import org.apache.commons.io.FileUtils;
@@ -76,9 +75,7 @@ public class DatabaseExporter {
     }
 
     public static void importBackup(Uri inputUri, Context context) throws IOException {
-        if (!GuardianGate.isOpen()) {
-            throw new GuardianGateClosedException(inputUri.toString());
-        }
+        GuardianGate.requireOpen("import a database");
         InputStream inputStream = null;
         try {
             File tempDB = context.getDatabasePath(TEMP_DB_NAME);

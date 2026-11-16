@@ -41,6 +41,7 @@ public class GuardianGate {
     private static final String KEY_FAILED_COUNT = "failed_count";
     private static final String KEY_LOCKOUT_UNTIL = "lockout_until";
     private static final String KEY_BACKGROUND_SINCE = "background_since";
+    private static final String KEY_DISABLED = "disabled";
 
     private static final String ALGORITHM = "PBKDF2WithHmacSHA1";
     private static final int ITERATIONS = 20000;
@@ -70,36 +71,31 @@ public class GuardianGate {
         return prefs().getString(KEY_HASH, null) != null;
     }
 
-    @WorkerThread
-    @SuppressLint("ApplySharedPref")
-    public static synchronized void setCode(@NonNull String code) {
-        if (code.length() < MIN_CODE_LENGTH) {
-            throw new IllegalArgumentException("Code must be at least " + MIN_CODE_LENGTH + " characters");
-        }
-        byte[] salt = new byte[SALT_BYTES];
-        new SecureRandom().nextBytes(salt);
-        byte[] hash = hash(code, salt, ITERATIONS);
-        prefs().edit()
-                .putString(KEY_SALT, Base64.encodeToString(salt, Base64.NO_WRAP))
-                .putString(KEY_HASH, Base64.encodeToString(hash, Base64.NO_WRAP))
-                .putInt(KEY_ITERATIONS, ITERATIONS)
-                .putInt(KEY_FAILED_COUNT, 0)
-                .putLong(KEY_LOCKOUT_UNTIL, 0)
-                .commit();
-    }
-
-    public static synchronized void clearCode() {
-        prefs().edit().clear().apply();
+    public static boolean isEnabled() {
+        return isConfigured() && !prefs().getBoolean(KEY_DISABLED, false);
     }
 
     public static boolean isOpen() {
         if (prefs == null || !isConfigured()) {
             return false;
         }
+        return !isEnabled() || getOpenRemainingMillis() > 0;
+    }
+
+    public static void requireOpen(@NonNull String action) {
+        if (!isOpen()) {
+            throw new GuardianGateClosedException(action);
+        }
+    }
+
+    public static long getOpenRemainingMillis() {
         long now = clock.now();
-        long openedAt = prefs.getLong(KEY_OPENED_AT, 0);
-        long openUntil = prefs.getLong(KEY_OPEN_UNTIL, 0);
-        return now >= openedAt && now < openUntil && !backgroundedTooLong(now);
+        long openedAt = prefs().getLong(KEY_OPENED_AT, 0);
+        long openUntil = prefs().getLong(KEY_OPEN_UNTIL, 0);
+        if (now < openedAt || backgroundedTooLong(now)) {
+            return 0;
+        }
+        return Math.max(0, openUntil - now);
     }
 
     private static boolean backgroundedTooLong(long now) {
@@ -121,8 +117,14 @@ public class GuardianGate {
         byte[] expected = Base64.decode(prefs().getString(KEY_HASH, ""), Base64.NO_WRAP);
         int iterations = prefs().getInt(KEY_ITERATIONS, ITERATIONS);
         if (MessageDigest.isEqual(expected, hash(code, salt, iterations))) {
-            prefs().edit().putInt(KEY_FAILED_COUNT, 0).putLong(KEY_LOCKOUT_UNTIL, 0).commit();
-            openFor(getWindowMinutes());
+            long now = clock.now();
+            prefs().edit()
+                    .putInt(KEY_FAILED_COUNT, 0)
+                    .putLong(KEY_LOCKOUT_UNTIL, 0)
+                    .putLong(KEY_OPENED_AT, now)
+                    .putLong(KEY_OPEN_UNTIL, now + TimeUnit.MINUTES.toMillis(getWindowMinutes()))
+                    .putLong(KEY_BACKGROUND_SINCE, 0)
+                    .commit();
             return Result.OPENED;
         }
         int failed = prefs().getInt(KEY_FAILED_COUNT, 0) + 1;
@@ -144,15 +146,6 @@ public class GuardianGate {
         return prefs().getInt(KEY_FAILED_COUNT, 0);
     }
 
-    public static synchronized void openFor(int minutes) {
-        long now = clock.now();
-        prefs().edit()
-                .putLong(KEY_OPENED_AT, now)
-                .putLong(KEY_OPEN_UNTIL, now + TimeUnit.MINUTES.toMillis(minutes))
-                .putLong(KEY_BACKGROUND_SINCE, 0)
-                .apply();
-    }
-
     @SuppressLint("ApplySharedPref")
     public static synchronized void lock() {
         prefs().edit()
@@ -162,11 +155,45 @@ public class GuardianGate {
                 .commit();
     }
 
+    @WorkerThread
+    @SuppressLint("ApplySharedPref")
+    public static synchronized void setCode(@NonNull String code) {
+        if (isConfigured()) {
+            requireOpen("change the guardian code");
+        }
+        if (code.length() < MIN_CODE_LENGTH) {
+            throw new IllegalArgumentException("Code must be at least " + MIN_CODE_LENGTH + " characters");
+        }
+        byte[] salt = new byte[SALT_BYTES];
+        new SecureRandom().nextBytes(salt);
+        byte[] hash = hash(code, salt, ITERATIONS);
+        prefs().edit()
+                .putString(KEY_SALT, Base64.encodeToString(salt, Base64.NO_WRAP))
+                .putString(KEY_HASH, Base64.encodeToString(hash, Base64.NO_WRAP))
+                .putInt(KEY_ITERATIONS, ITERATIONS)
+                .putInt(KEY_FAILED_COUNT, 0)
+                .putLong(KEY_LOCKOUT_UNTIL, 0)
+                .commit();
+    }
+
+    @SuppressLint("ApplySharedPref")
+    public static synchronized void setEnabled(boolean enabled) {
+        requireOpen("change guardian settings");
+        prefs().edit().putBoolean(KEY_DISABLED, !enabled).commit();
+    }
+
+    @SuppressLint("ApplySharedPref")
+    public static synchronized void removeCodeAndSettings() {
+        requireOpen("remove the guardian code");
+        prefs().edit().clear().commit();
+    }
+
     public static int getWindowMinutes() {
         return prefs().getInt(KEY_WINDOW_MINUTES, DEFAULT_WINDOW_MINUTES);
     }
 
     public static synchronized void setWindowMinutes(int minutes) {
+        requireOpen("change guardian settings");
         if (minutes < 1) {
             throw new IllegalArgumentException("Window must be at least one minute");
         }
@@ -174,7 +201,7 @@ public class GuardianGate {
     }
 
     public static synchronized void onAppBackgrounded() {
-        if (isOpen()) {
+        if (getOpenRemainingMillis() > 0) {
             prefs().edit().putLong(KEY_BACKGROUND_SINCE, clock.now()).apply();
         }
     }
@@ -185,6 +212,12 @@ public class GuardianGate {
         } else if (prefs().getLong(KEY_BACKGROUND_SINCE, 0) != 0) {
             prefs().edit().putLong(KEY_BACKGROUND_SINCE, 0).apply();
         }
+    }
+
+    @VisibleForTesting
+    @SuppressLint("ApplySharedPref")
+    static synchronized void resetForTesting() {
+        prefs().edit().clear().commit();
     }
 
     private static byte[] hash(String code, byte[] salt, int iterations) {

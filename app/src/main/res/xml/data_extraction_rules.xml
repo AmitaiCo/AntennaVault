@@ -8,4 +8,12 @@
             domain="database"
             path="Antennapod.db" />
     </cloud-backup>
+    <device-transfer>
+        <exclude
+            domain="sharedpref"
+            path="guardian_gate.xml" />
+        <exclude
+            domain="database"
+            path="Antennapod.db" />
+    </device-transfer>
 </data-extraction-rules>

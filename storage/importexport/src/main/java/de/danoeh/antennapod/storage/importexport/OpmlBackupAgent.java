@@ -10,6 +10,7 @@ import android.util.Log;
 
 import de.danoeh.antennapod.net.download.serviceinterface.FeedUpdateManager;
 import de.danoeh.antennapod.storage.database.FeedDatabaseWriter;
+import de.danoeh.antennapod.storage.preferences.GuardianGateClosedException;
 import org.apache.commons.io.IOUtils;
 import org.xmlpull.v1.XmlPullParserException;
 
@@ -143,7 +144,11 @@ public class OpmlBackupAgent extends BackupAgentHelper {
                 for (OpmlElement opmlElem : opmlElements) {
                     Feed feed = new Feed(opmlElem.getXmlUrl(), null, opmlElem.getText());
                     feed.setItems(Collections.emptyList());
-                    FeedDatabaseWriter.updateFeed(mContext, feed, false);
+                    try {
+                        FeedDatabaseWriter.updateFeed(mContext, feed, false);
+                    } catch (GuardianGateClosedException e) {
+                        Log.w(TAG, e.getMessage());
+                    }
                 }
                 FeedUpdateManager.getInstance().runOnce(mContext);
             } catch (XmlPullParserException e) {

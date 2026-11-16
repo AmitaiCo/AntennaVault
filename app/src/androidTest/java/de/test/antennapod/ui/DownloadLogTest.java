@@ -14,7 +14,7 @@ import de.danoeh.antennapod.model.feed.FeedItem;
 import de.danoeh.antennapod.model.feed.FeedMedia;
 import de.danoeh.antennapod.storage.database.DBWriter;
 import de.danoeh.antennapod.storage.database.FeedDatabaseWriter;
-import de.danoeh.antennapod.storage.preferences.GuardianGate;
+import de.danoeh.antennapod.storage.preferences.GuardianGateTestUtil;
 import de.danoeh.antennapod.ui.appstartintent.MainActivityStarter;
 import de.danoeh.antennapod.ui.screen.download.CompletedDownloadsFragment;
 import de.test.antennapod.EspressoTestUtils;
@@ -53,9 +53,7 @@ public class DownloadLogTest {
         EspressoTestUtils.clearPreferences();
         EspressoTestUtils.clearDatabase();
         context = InstrumentationRegistry.getInstrumentation().getTargetContext();
-        GuardianGate.init(context);
-        GuardianGate.setCode("guardian");
-        GuardianGate.verify("guardian");
+        GuardianGateTestUtil.configureOpen(context);
         completedDownloadsIntent = new Intent(context, MainActivity.class);
         completedDownloadsIntent.putExtra(MainActivityStarter.EXTRA_FRAGMENT_TAG, CompletedDownloadsFragment.TAG);
 

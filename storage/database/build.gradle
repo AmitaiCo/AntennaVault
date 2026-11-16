@@ -31,6 +31,7 @@ dependencies {
     implementation "org.apache.commons:commons-lang3:$commonslangVersion"
 
     testImplementation project(':parser:feed')
+    testImplementation testFixtures(project(':storage:preferences'))
     testImplementation "junit:junit:$junitVersion"
     testImplementation "androidx.test:core:$testCoreVersion"
     testImplementation "org.robolectric:robolectric:$robolectricVersion"

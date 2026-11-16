@@ -630,7 +630,7 @@
     <string name="contributors">Contributors</string>
     <string name="contributors_summary">Everyone can help to make AntennaPod better - with code, translations or by helping users in our forum</string>
     <string name="about_source_title">Based on AntennaPod</string>
-    <string name="about_source_summary">%1$s is a modified version of AntennaPod, licensed under the GNU GPL v3. The AntennaPod team does not support this version. Source code: %2$s</string>
+    <string name="about_source_summary">%1$s is a modified version of AntennaPod, changed since November 2026 and licensed under the GNU GPL v3. The AntennaPod team does not support this version. Source code: %2$s</string>
     <string name="developers">Developers</string>
     <string name="translators">Translators</string>
     <string name="special_thanks">Special thanks</string>

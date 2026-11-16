@@ -14,6 +14,7 @@ import de.danoeh.antennapod.model.feed.SortOrder;
 import de.danoeh.antennapod.net.sync.serviceinterface.EpisodeAction;
 import de.danoeh.antennapod.net.sync.serviceinterface.SynchronizationQueue;
 import de.danoeh.antennapod.storage.preferences.GuardianGate;
+import de.danoeh.antennapod.storage.preferences.GuardianGateClosedException;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
 import org.greenrobot.eventbus.EventBus;
 
@@ -46,11 +47,13 @@ public abstract class FeedDatabaseWriter {
         return null;
     }
 
-    private static boolean addsToSubscriptions(Feed savedFeed, Feed newFeed) {
-        if (savedFeed == null) {
-            return newFeed.getState() != Feed.STATE_NOT_SUBSCRIBED;
-        }
-        return newFeed.getId() == 0
+    private static boolean createsSubscription(Feed savedFeed, Feed newFeed) {
+        return savedFeed == null && newFeed.getState() != Feed.STATE_NOT_SUBSCRIBED;
+    }
+
+    private static boolean mergesForeignFeedIntoSubscription(Feed savedFeed, Feed newFeed) {
+        return savedFeed != null
+                && newFeed.getId() == 0
                 && savedFeed.getState() != Feed.STATE_NOT_SUBSCRIBED
                 && !TextUtils.equals(savedFeed.getDownloadUrl(), newFeed.getDownloadUrl());
     }
@@ -76,9 +79,13 @@ public abstract class FeedDatabaseWriter {
 
         // Look up feed in the feedslist
         final Feed savedFeed = searchFeedByIdentifyingValueOrID(newFeed);
-        if (addsToSubscriptions(savedFeed, newFeed) && !GuardianGate.isOpen()) {
-            adapter.close();
-            throw new GuardianGateClosedException(newFeed.getDownloadUrl());
+        if (createsSubscription(savedFeed, newFeed) || mergesForeignFeedIntoSubscription(savedFeed, newFeed)) {
+            try {
+                GuardianGate.requireOpen("subscribe to " + newFeed.getDownloadUrl());
+            } catch (GuardianGateClosedException e) {
+                adapter.close();
+                throw e;
+            }
         }
         if (savedFeed == null) {
             Log.d(TAG, "Found no existing Feed with title "

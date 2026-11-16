@@ -102,3 +102,12 @@ First run with no code set: show "Hand the phone to your guardian" and set the c
 - D4. DECIDED: do not gate unsubscribing.
 - D5. DECIDED: keep Android cloud backup, but restoring needs the code (gate `OpmlBackupAgent.restoreEntity`; it has no UI, so when locked, hold the restored feeds as pending like D2).
 - D6. DECIDED: build in GitHub Actions. The fork is public, so Actions minutes are free. Actions must be enabled on the fork (off by default for forks).
+
+## 7. Implementation notes (after the steps 1-3 review)
+- UI code checks `GuardianGate.isOpen()` and prompts before calling into the database. `GuardianGateClosedException` thrown by `FeedDatabaseWriter.updateFeed`, `DBWriter.setFeedState` and `DatabaseExporter.importBackup` is only a backstop: the Subscribe buttons drop the `Future`, so a refusal there is silent.
+- `isConfigured()` false: route to first-run setup. `isEnabled()` false: the guardian turned the gate off, so `isOpen()` is always true.
+- Changing the code, the window, enabling/disabling, or `removeCodeAndSettings()` all require an open gate (`requireOpen`).
+- `verify()` and `setCode()` are `@WorkerThread` (PBKDF2). Call them off the main thread.
+- Step 4 wires `onAppBackgrounded()` / `onAppForegrounded()` from `ProcessLifecycleOwner` in `:app`.
+- Tests open the gate with `GuardianGateTestUtil` from `:storage:preferences` test fixtures.
+- Only give the guardian a release build. A debuggable build allows `adb shell run-as` to delete the gate's settings.

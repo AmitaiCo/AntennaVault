@@ -11,7 +11,7 @@ import androidx.test.platform.app.InstrumentationRegistry;
 import de.danoeh.antennapod.model.feed.FeedItemFilter;
 import de.danoeh.antennapod.model.feed.SortOrder;
 import de.danoeh.antennapod.storage.preferences.PlaybackPreferences;
-import de.danoeh.antennapod.storage.preferences.GuardianGate;
+import de.danoeh.antennapod.storage.preferences.GuardianGateTestUtil;
 import de.danoeh.antennapod.net.download.serviceinterface.DownloadServiceInterface;
 import de.danoeh.antennapod.net.download.serviceinterface.DownloadServiceInterfaceStub;
 import de.danoeh.antennapod.model.feed.Feed;
@@ -73,9 +73,7 @@ public class LocalFeedUpdaterTest {
         UserPreferences.init(context);
         PlaybackPreferences.init(context);
         SynchronizationSettings.init(context);
-        GuardianGate.init(context);
-        GuardianGate.setCode("guardian");
-        GuardianGate.verify("guardian");
+        GuardianGateTestUtil.configureOpen(context);
         DownloadServiceInterface.setImpl(new DownloadServiceInterfaceStub());
 
         // Initialize database

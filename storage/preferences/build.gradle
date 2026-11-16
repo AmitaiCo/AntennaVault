@@ -6,6 +6,10 @@ apply from: "../../common.gradle"
 android {
     namespace "de.danoeh.antennapod.storage.preferences"
 
+    testFixtures {
+        enable true
+    }
+
     lint {
         disable "StaticFieldLeak"
     }

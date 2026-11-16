@@ -13,7 +13,7 @@ import de.danoeh.antennapod.playback.base.MediaItemAdapter;
 import de.danoeh.antennapod.storage.database.FeedDatabaseWriter;
 import de.danoeh.antennapod.storage.database.PodDBAdapter;
 import de.danoeh.antennapod.storage.preferences.PlaybackPreferences;
-import de.danoeh.antennapod.storage.preferences.GuardianGate;
+import de.danoeh.antennapod.storage.preferences.GuardianGateTestUtil;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
 import org.junit.After;
 import org.junit.Before;
@@ -45,9 +45,7 @@ public class MediaLibrarySessionCallbackTest {
         PodDBAdapter.init(context);
         PodDBAdapter.deleteDatabase();
         SynchronizationQueue.setInstance(new SynchronizationQueueStub());
-        GuardianGate.init(context);
-        GuardianGate.setCode("guardian");
-        GuardianGate.verify("guardian");
+        GuardianGateTestUtil.configureOpen(context);
         callback = new MediaLibrarySessionCallback(context);
     }
 

@@ -1,3 +1,8 @@
+> **AntennaVault** is a modified version of AntennaPod 3.12.3, changed since November 2026.
+> Adding a new podcast requires a code held by a guardian; existing subscriptions keep working without it.
+> It is not supported by the AntennaPod team. See [GUARDIAN_GATE_PLAN.md](GUARDIAN_GATE_PLAN.md) for the design.
+> Licensed under the GNU GPL v3, like AntennaPod. The original README follows.
+
 # AntennaPod
 
 [![GitHub check runs](https://img.shields.io/github/check-runs/AntennaPod/AntennaPod/develop)](https://github.com/AntennaPod/AntennaPod/actions/workflows/checks.yml?query=branch%3Adevelop)

@@ -26,7 +26,7 @@ public class GuardianGateTest {
         now = 1_000_000_000_000L;
         GuardianGate.setClock(() -> now);
         GuardianGate.init(ApplicationProvider.getApplicationContext());
-        GuardianGate.clearCode();
+        GuardianGate.resetForTesting();
     }
 
     @After
@@ -80,7 +80,9 @@ public class GuardianGateTest {
     @Test
     public void changingCodeInvalidatesOldCode() {
         GuardianGate.setCode(CODE);
+        GuardianGate.verify(CODE);
         GuardianGate.setCode("999999");
+        GuardianGate.lock();
         assertEquals(GuardianGate.Result.WRONG_CODE, GuardianGate.verify(CODE));
         assertEquals(GuardianGate.Result.OPENED, GuardianGate.verify("999999"));
     }
@@ -98,7 +100,9 @@ public class GuardianGateTest {
     @Test
     public void customWindowLength() {
         GuardianGate.setCode(CODE);
+        GuardianGate.verify(CODE);
         GuardianGate.setWindowMinutes(30);
+        GuardianGate.lock();
         GuardianGate.verify(CODE);
         advanceMinutes(29);
         assertTrue(GuardianGate.isOpen());
@@ -206,13 +210,84 @@ public class GuardianGateTest {
         assertEquals(0, GuardianGate.getLockoutRemainingMillis());
     }
 
-    @Test
-    public void lockoutSurvivesRestart() {
+    @Test(expected = GuardianGateClosedException.class)
+    public void changingCodeRequiresOpenGate() {
         GuardianGate.setCode(CODE);
-        failTimes(5);
-        GuardianGate.init(ApplicationProvider.getApplicationContext());
-        assertEquals(GuardianGate.Result.LOCKED_OUT, GuardianGate.verify(CODE));
-        assertEquals(5, GuardianGate.getFailedAttempts());
+        GuardianGate.setCode("999999");
+    }
+
+    @Test(expected = GuardianGateClosedException.class)
+    public void changingWindowRequiresOpenGate() {
+        GuardianGate.setCode(CODE);
+        GuardianGate.setWindowMinutes(30);
+    }
+
+    @Test(expected = GuardianGateClosedException.class)
+    public void disablingRequiresOpenGate() {
+        GuardianGate.setCode(CODE);
+        GuardianGate.setEnabled(false);
+    }
+
+    @Test(expected = GuardianGateClosedException.class)
+    public void removingCodeRequiresOpenGate() {
+        GuardianGate.setCode(CODE);
+        GuardianGate.removeCodeAndSettings();
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void zeroMinuteWindowRejected() {
+        GuardianGate.setCode(CODE);
+        GuardianGate.verify(CODE);
+        GuardianGate.setWindowMinutes(0);
+    }
+
+    @Test
+    public void disabledGateIsAlwaysOpen() {
+        GuardianGate.setCode(CODE);
+        GuardianGate.verify(CODE);
+        GuardianGate.setEnabled(false);
+        GuardianGate.lock();
+        advanceMinutes(TimeUnit.DAYS.toMinutes(30));
+        assertFalse(GuardianGate.isEnabled());
+        assertTrue(GuardianGate.isOpen());
+    }
+
+    @Test
+    public void reenablingClosesAfterWindow() {
+        GuardianGate.setCode(CODE);
+        GuardianGate.verify(CODE);
+        GuardianGate.setEnabled(false);
+        GuardianGate.setEnabled(true);
+        GuardianGate.lock();
+        assertTrue(GuardianGate.isEnabled());
+        assertFalse(GuardianGate.isOpen());
+    }
+
+    @Test
+    public void removingCodeLeavesGateUnconfiguredAndClosed() {
+        GuardianGate.setCode(CODE);
+        GuardianGate.verify(CODE);
+        failTimes(3);
+        GuardianGate.removeCodeAndSettings();
+        assertFalse(GuardianGate.isConfigured());
+        assertFalse(GuardianGate.isOpen());
+        assertEquals(0, GuardianGate.getFailedAttempts());
+    }
+
+    @Test
+    public void openRemainingCountsDown() {
+        GuardianGate.setCode(CODE);
+        assertEquals(0, GuardianGate.getOpenRemainingMillis());
+        GuardianGate.verify(CODE);
+        advanceMinutes(4);
+        assertEquals(TimeUnit.MINUTES.toMillis(GuardianGate.DEFAULT_WINDOW_MINUTES - 4),
+                GuardianGate.getOpenRemainingMillis());
+    }
+
+    @Test(expected = GuardianGateClosedException.class)
+    public void requireOpenThrowsWhenClosed() {
+        GuardianGate.setCode(CODE);
+        GuardianGate.requireOpen("test");
     }
 
     @Test(expected = IllegalArgumentException.class)

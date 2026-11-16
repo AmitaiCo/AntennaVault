@@ -36,7 +36,7 @@ public class ClientConfigurator {
         }
         try {
             PackageInfo packageInfo = context.getPackageManager().getPackageInfo(context.getPackageName(), 0);
-            UserAgentInterceptor.USER_AGENT = "AntennaPod/" + packageInfo.versionName;
+            UserAgentInterceptor.USER_AGENT = "AntennaVault/" + packageInfo.versionName;
         } catch (PackageManager.NameNotFoundException e) {
             e.printStackTrace();
         }

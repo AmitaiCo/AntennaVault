@@ -17,7 +17,6 @@ import de.danoeh.antennapod.ui.preferences.screen.AnimatedPreferenceFragment;
 public class AboutFragment extends AnimatedPreferenceFragment {
     private static final String SOURCE_URL = "https://github.com/AmitaiCo/AntennaVault";
 
-
     @Override
     public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
         addPreferencesFromResource(R.xml.preferences_about);

@@ -41,6 +41,7 @@ dependencies {
     implementation "io.reactivex.rxjava3:rxjava:$rxJavaVersion"
     implementation "com.google.guava:guava:31.0.1-android"
 
+    testImplementation testFixtures(project(':storage:preferences'))
     testImplementation "junit:junit:$junitVersion"
     testImplementation "org.robolectric:robolectric:$robolectricVersion"
     testImplementation "org.awaitility:awaitility:$awaitilityVersion"

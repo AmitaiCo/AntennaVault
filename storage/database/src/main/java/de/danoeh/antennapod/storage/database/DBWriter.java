@@ -861,12 +861,11 @@ public class DBWriter {
     }
 
     public static Future<?> setFeedState(Context context, Feed feed, int newState) {
-        int oldState = feed.getState();
         return runOnDbThread(() -> {
             Feed storedFeed = DBReader.getFeed(feed.getId(), false, 0, 0);
-            if (storedFeed != null && storedFeed.getState() == Feed.STATE_NOT_SUBSCRIBED
-                    && newState != Feed.STATE_NOT_SUBSCRIBED && !GuardianGate.isOpen()) {
-                throw new GuardianGateClosedException(feed.getDownloadUrl());
+            int oldState = storedFeed != null ? storedFeed.getState() : feed.getState();
+            if (oldState == Feed.STATE_NOT_SUBSCRIBED && newState != Feed.STATE_NOT_SUBSCRIBED) {
+                GuardianGate.requireOpen("subscribe to " + feed.getDownloadUrl());
             }
             PodDBAdapter adapter = PodDBAdapter.getInstance();
             adapter.open();

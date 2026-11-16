@@ -125,6 +125,7 @@ dependencies {
     testImplementation "junit:junit:$junitVersion"
     testImplementation "org.robolectric:robolectric:$robolectricVersion"
 
+    androidTestImplementation testFixtures(project(':storage:preferences'))
     androidTestImplementation "org.awaitility:awaitility:$awaitilityVersion"
     androidTestImplementation 'com.nanohttpd:nanohttpd:2.1.1'
     androidTestImplementation "androidx.test.espresso:espresso-core:$espressoVersion"

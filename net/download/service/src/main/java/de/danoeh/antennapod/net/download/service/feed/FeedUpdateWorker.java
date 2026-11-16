@@ -27,7 +27,6 @@ import de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestCreator
 import de.danoeh.antennapod.net.sync.serviceinterface.SynchronizationQueue;
 import de.danoeh.antennapod.storage.database.DBReader;
 import de.danoeh.antennapod.storage.database.FeedDatabaseWriter;
-import de.danoeh.antennapod.storage.database.GuardianGateClosedException;
 import de.danoeh.antennapod.storage.database.DBWriter;
 import de.danoeh.antennapod.net.common.NetworkUtils;
 import de.danoeh.antennapod.model.download.DownloadError;
@@ -38,6 +37,7 @@ import de.danoeh.antennapod.model.download.DownloadRequest;
 import de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestBuilder;
 import de.danoeh.antennapod.parser.feed.FeedHandlerResult;
 import de.danoeh.antennapod.storage.database.NonSubscribedFeedsCleaner;
+import de.danoeh.antennapod.storage.preferences.GuardianGateClosedException;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
 import de.danoeh.antennapod.ui.notifications.NotificationUtils;
 import java.util.ArrayList;
@@ -179,7 +179,7 @@ public class FeedUpdateWorker extends Worker {
                         newEpisodesNotification.showIfNeeded(getApplicationContext(), savedFeed);
                     }
                 } catch (GuardianGateClosedException e) {
-                    Log.d(TAG, "Feed was removed during refresh: " + e.getMessage());
+                    Log.w(TAG, e.getMessage());
                 } catch (Exception e) {
                     e.printStackTrace();
                     DBWriter.setFeedLastUpdateFailed(feed.getId(), true);
