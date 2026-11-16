@@ -25,6 +25,7 @@ public class GuardianGate {
         long now();
     }
 
+    public static final int MIN_CODE_LENGTH = 6;
     public static final int DEFAULT_WINDOW_MINUTES = 10;
     public static final int ATTEMPTS_BEFORE_LOCKOUT = 5;
     public static final long BACKGROUND_GRACE_MILLIS = TimeUnit.MINUTES.toMillis(1);
@@ -72,8 +73,8 @@ public class GuardianGate {
     @WorkerThread
     @SuppressLint("ApplySharedPref")
     public static synchronized void setCode(@NonNull String code) {
-        if (code.isEmpty()) {
-            throw new IllegalArgumentException("Code must not be empty");
+        if (code.length() < MIN_CODE_LENGTH) {
+            throw new IllegalArgumentException("Code must be at least " + MIN_CODE_LENGTH + " characters");
         }
         byte[] salt = new byte[SALT_BYTES];
         new SecureRandom().nextBytes(salt);
@@ -152,12 +153,13 @@ public class GuardianGate {
                 .apply();
     }
 
+    @SuppressLint("ApplySharedPref")
     public static synchronized void lock() {
         prefs().edit()
                 .putLong(KEY_OPENED_AT, 0)
                 .putLong(KEY_OPEN_UNTIL, 0)
                 .putLong(KEY_BACKGROUND_SINCE, 0)
-                .apply();
+                .commit();
     }
 
     public static int getWindowMinutes() {

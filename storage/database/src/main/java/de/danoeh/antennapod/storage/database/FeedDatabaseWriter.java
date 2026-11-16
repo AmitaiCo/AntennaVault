@@ -1,6 +1,7 @@
 package de.danoeh.antennapod.storage.database;
 
 import android.content.Context;
+import android.text.TextUtils;
 import android.util.Log;
 import de.danoeh.antennapod.event.FeedListUpdateEvent;
 import de.danoeh.antennapod.model.download.DownloadError;
@@ -45,6 +46,15 @@ public abstract class FeedDatabaseWriter {
         return null;
     }
 
+    private static boolean addsToSubscriptions(Feed savedFeed, Feed newFeed) {
+        if (savedFeed == null) {
+            return newFeed.getState() != Feed.STATE_NOT_SUBSCRIBED;
+        }
+        return newFeed.getId() == 0
+                && savedFeed.getState() != Feed.STATE_NOT_SUBSCRIBED
+                && !TextUtils.equals(savedFeed.getDownloadUrl(), newFeed.getDownloadUrl());
+    }
+
     /**
      * Adds new Feeds to the database or updates the old versions if they already exists. If another Feed with the same
      * identifying value already exists, this method will add new FeedItems from the new Feed to the existing Feed.
@@ -66,7 +76,7 @@ public abstract class FeedDatabaseWriter {
 
         // Look up feed in the feedslist
         final Feed savedFeed = searchFeedByIdentifyingValueOrID(newFeed);
-        if (savedFeed == null && newFeed.getState() != Feed.STATE_NOT_SUBSCRIBED && !GuardianGate.isOpen()) {
+        if (addsToSubscriptions(savedFeed, newFeed) && !GuardianGate.isOpen()) {
             adapter.close();
             throw new GuardianGateClosedException(newFeed.getDownloadUrl());
         }

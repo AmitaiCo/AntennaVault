@@ -27,6 +27,7 @@ import de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestCreator
 import de.danoeh.antennapod.net.sync.serviceinterface.SynchronizationQueue;
 import de.danoeh.antennapod.storage.database.DBReader;
 import de.danoeh.antennapod.storage.database.FeedDatabaseWriter;
+import de.danoeh.antennapod.storage.database.GuardianGateClosedException;
 import de.danoeh.antennapod.storage.database.DBWriter;
 import de.danoeh.antennapod.net.common.NetworkUtils;
 import de.danoeh.antennapod.model.download.DownloadError;
@@ -177,6 +178,8 @@ public class FeedUpdateWorker extends Worker {
                     if (savedFeed != null) {
                         newEpisodesNotification.showIfNeeded(getApplicationContext(), savedFeed);
                     }
+                } catch (GuardianGateClosedException e) {
+                    Log.d(TAG, "Feed was removed during refresh: " + e.getMessage());
                 } catch (Exception e) {
                     e.printStackTrace();
                     DBWriter.setFeedLastUpdateFailed(feed.getId(), true);

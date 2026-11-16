@@ -18,7 +18,7 @@ import static org.junit.Assert.assertTrue;
 
 @RunWith(RobolectricTestRunner.class)
 public class GuardianGateTest {
-    private static final String CODE = "4821";
+    private static final String CODE = "482193";
     private long now;
 
     @Before
@@ -80,9 +80,9 @@ public class GuardianGateTest {
     @Test
     public void changingCodeInvalidatesOldCode() {
         GuardianGate.setCode(CODE);
-        GuardianGate.setCode("9999");
+        GuardianGate.setCode("999999");
         assertEquals(GuardianGate.Result.WRONG_CODE, GuardianGate.verify(CODE));
-        assertEquals(GuardianGate.Result.OPENED, GuardianGate.verify("9999"));
+        assertEquals(GuardianGate.Result.OPENED, GuardianGate.verify("999999"));
     }
 
     @Test
@@ -216,7 +216,7 @@ public class GuardianGateTest {
     }
 
     @Test(expected = IllegalArgumentException.class)
-    public void emptyCodeRejected() {
-        GuardianGate.setCode("");
+    public void shortCodeRejected() {
+        GuardianGate.setCode("12345");
     }
 }

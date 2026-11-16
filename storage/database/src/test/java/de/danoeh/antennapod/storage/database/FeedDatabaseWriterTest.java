@@ -46,8 +46,8 @@ public class FeedDatabaseWriterTest {
         adapter.close();
         SynchronizationQueue.setInstance(new SynchronizationQueueStub());
         GuardianGate.init(context);
-        GuardianGate.setCode("test");
-        GuardianGate.verify("test");
+        GuardianGate.setCode("guardian");
+        GuardianGate.verify("guardian");
     }
 
     @Test

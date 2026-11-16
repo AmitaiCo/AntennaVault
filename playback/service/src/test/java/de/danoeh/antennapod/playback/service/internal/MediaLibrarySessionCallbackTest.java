@@ -46,8 +46,8 @@ public class MediaLibrarySessionCallbackTest {
         PodDBAdapter.deleteDatabase();
         SynchronizationQueue.setInstance(new SynchronizationQueueStub());
         GuardianGate.init(context);
-        GuardianGate.setCode("test");
-        GuardianGate.verify("test");
+        GuardianGate.setCode("guardian");
+        GuardianGate.verify("guardian");
         callback = new MediaLibrarySessionCallback(context);
     }
 

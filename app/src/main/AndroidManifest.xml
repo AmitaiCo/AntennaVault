@@ -33,6 +33,8 @@
         android:roundIcon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:backupAgent=".storage.importexport.OpmlBackupAgent"
+        android:fullBackupContent="@xml/full_backup_content"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:restoreAnyVersion="true"
         android:theme="@style/Theme.AntennaPod.Splash"
         android:usesCleartextTraffic="true"

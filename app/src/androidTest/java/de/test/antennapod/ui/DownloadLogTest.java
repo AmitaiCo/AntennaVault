@@ -54,8 +54,8 @@ public class DownloadLogTest {
         EspressoTestUtils.clearDatabase();
         context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         GuardianGate.init(context);
-        GuardianGate.setCode("test");
-        GuardianGate.verify("test");
+        GuardianGate.setCode("guardian");
+        GuardianGate.verify("guardian");
         completedDownloadsIntent = new Intent(context, MainActivity.class);
         completedDownloadsIntent.putExtra(MainActivityStarter.EXTRA_FRAGMENT_TAG, CompletedDownloadsFragment.TAG);
 

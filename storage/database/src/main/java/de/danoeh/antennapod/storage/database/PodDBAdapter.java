@@ -467,7 +467,6 @@ public class PodDBAdapter {
         values.put(KEY_LASTUPDATE, feed.getLastModified());
         values.put(KEY_TYPE, feed.getType());
         values.put(KEY_FEED_IDENTIFIER, feed.getFeedIdentifier());
-        values.put(KEY_STATE, feed.getState());
 
         values.put(KEY_IS_PAGED, feed.isPaged());
         values.put(KEY_NEXT_PAGE_LINK, feed.getNextPageLink());
@@ -481,6 +480,7 @@ public class PodDBAdapter {
         if (feed.getId() == 0) {
             // Create new entry
             Log.d(this.toString(), "Inserting new Feed into db");
+            values.put(KEY_STATE, feed.getState());
             feed.setId(db.insert(TABLE_NAME_FEEDS, null, values));
         } else {
             Log.d(this.toString(), "Updating existing Feed in db");

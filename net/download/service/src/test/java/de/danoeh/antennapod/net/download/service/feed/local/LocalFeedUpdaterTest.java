@@ -74,8 +74,8 @@ public class LocalFeedUpdaterTest {
         PlaybackPreferences.init(context);
         SynchronizationSettings.init(context);
         GuardianGate.init(context);
-        GuardianGate.setCode("test");
-        GuardianGate.verify("test");
+        GuardianGate.setCode("guardian");
+        GuardianGate.verify("guardian");
         DownloadServiceInterface.setImpl(new DownloadServiceInterfaceStub());
 
         // Initialize database
