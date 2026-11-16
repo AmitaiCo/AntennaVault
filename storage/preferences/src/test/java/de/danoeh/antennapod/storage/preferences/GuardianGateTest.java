@@ -254,7 +254,6 @@ public class GuardianGateTest {
         assertEquals(GuardianGate.Result.WRONG_CODE, GuardianGate.changeCode(WRONG_CODE, OTHER_CODE));
         assertEquals(GuardianGate.Result.WRONG_CODE, GuardianGate.setEnabled(WRONG_CODE, false));
         assertEquals(GuardianGate.Result.WRONG_CODE, GuardianGate.setWindowMinutes(WRONG_CODE, 60));
-        assertEquals(GuardianGate.Result.WRONG_CODE, GuardianGate.removeCode(WRONG_CODE));
         assertTrue(GuardianGate.isEnabled());
         assertEquals(GuardianGate.DEFAULT_WINDOW_MINUTES, GuardianGate.getWindowMinutes());
         assertEquals(GuardianGate.Result.ACCEPTED, GuardianGate.verify(CODE));
@@ -284,15 +283,5 @@ public class GuardianGateTest {
         GuardianGate.setEnabled(CODE, true);
         assertTrue(GuardianGate.isEnabled());
         assertFalse(GuardianGate.isOpen());
-    }
-
-    @Test
-    public void removingCodeLeavesGateUnconfiguredAndClosed() {
-        GuardianGate.setInitialCode(CODE);
-        failTimes(3);
-        assertEquals(GuardianGate.Result.ACCEPTED, GuardianGate.removeCode(CODE));
-        assertFalse(GuardianGate.isConfigured());
-        assertFalse(GuardianGate.isOpen());
-        assertEquals(0, GuardianGate.getFailedAttempts());
     }
 }

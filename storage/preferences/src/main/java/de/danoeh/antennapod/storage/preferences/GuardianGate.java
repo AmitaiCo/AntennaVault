@@ -171,17 +171,6 @@ public class GuardianGate {
         return result;
     }
 
-    @NonNull
-    @WorkerThread
-    @SuppressLint("ApplySharedPref")
-    public static synchronized Result removeCode(@NonNull String code) {
-        Result result = checkCode(code);
-        if (result == Result.ACCEPTED) {
-            prefs().edit().clear().commit();
-        }
-        return result;
-    }
-
     @SuppressLint("ApplySharedPref")
     public static synchronized void onAppBackgrounded() {
         if (getOpenRemainingMillis() > 0 && prefs().getLong(KEY_BACKGROUND_SINCE, 0) == 0) {

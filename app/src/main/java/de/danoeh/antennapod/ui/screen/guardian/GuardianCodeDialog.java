@@ -10,6 +10,8 @@ import android.widget.Button;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.StringRes;
+import androidx.annotation.WorkerThread;
 import androidx.appcompat.app.AlertDialog;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
@@ -25,6 +27,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class GuardianCodeDialog {
 
+    public interface CodeAction {
+        @WorkerThread
+        GuardianGate.Result apply(String code);
+    }
+
     private GuardianCodeDialog() {
     }
 
@@ -37,72 +44,19 @@ public final class GuardianCodeDialog {
         if (GuardianGate.isOpen()) {
             onOpen.run();
         } else if (!GuardianGate.isConfigured()) {
-            showNotConfigured(context, onCancel);
+            showNotConfigured(context, onOpen, onCancel);
         } else {
-            showCodePrompt(context, onOpen, onCancel);
+            showCodePrompt(context, R.string.guardian_code_message, R.string.guardian_unlock,
+                    GuardianGate::verify, onOpen, onCancel);
         }
     }
 
-    private static void showNotConfigured(Context context, @Nullable Runnable onCancel) {
-        new MaterialAlertDialogBuilder(context)
-                .setTitle(R.string.guardian_not_configured_title)
-                .setMessage(R.string.guardian_not_configured_message)
-                .setPositiveButton(android.R.string.ok, null)
-                .setOnDismissListener(dialog -> runIfSet(onCancel))
-                .show();
+    public static void confirmWithCode(@NonNull Context context, @StringRes int message,
+                                       @NonNull CodeAction action, @NonNull Runnable onAccepted) {
+        showCodePrompt(context, message, R.string.confirm_label, action, onAccepted, null);
     }
 
-    private static void showCodePrompt(Context context, Runnable onOpen, @Nullable Runnable onCancel) {
-        EditTextDialogBinding binding = EditTextDialogBinding.inflate(LayoutInflater.from(context));
-        binding.textInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        binding.textInputLayout.setHint(R.string.guardian_code_hint);
-
-        AtomicBoolean opened = new AtomicBoolean(false);
-        AlertDialog dialog = new MaterialAlertDialogBuilder(context)
-                .setTitle(R.string.guardian_code_title)
-                .setMessage(R.string.guardian_code_message)
-                .setView(binding.getRoot())
-                .setPositiveButton(R.string.guardian_unlock, null)
-                .setNegativeButton(R.string.cancel_label, null)
-                .setOnDismissListener(d -> {
-                    if (!opened.get()) {
-                        runIfSet(onCancel);
-                    }
-                })
-                .show();
-
-        Button unlockButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
-        unlockButton.setOnClickListener(v -> {
-            String code = String.valueOf(binding.textInput.getText());
-            unlockButton.setEnabled(false);
-            binding.textInputLayout.setError(null);
-            Single.fromCallable(() -> GuardianGate.verify(code))
-                    .subscribeOn(Schedulers.io())
-                    .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe(result -> {
-                        if (!dialog.isShowing() || isGone(context)) {
-                            if (result == GuardianGate.Result.ACCEPTED) {
-                                GuardianGate.lock();
-                            }
-                            return;
-                        }
-                        unlockButton.setEnabled(true);
-                        if (result == GuardianGate.Result.ACCEPTED) {
-                            opened.set(true);
-                            dialog.dismiss();
-                            onOpen.run();
-                        } else {
-                            binding.textInput.setText("");
-                            binding.textInputLayout.setError(errorMessage(context, result));
-                        }
-                    }, error -> {
-                        unlockButton.setEnabled(true);
-                        binding.textInputLayout.setError(error.getLocalizedMessage());
-                    });
-        });
-    }
-
-    private static String errorMessage(Context context, GuardianGate.Result result) {
+    static String errorMessage(Context context, GuardianGate.Result result) {
         if (result == GuardianGate.Result.NOT_CONFIGURED) {
             return context.getString(R.string.guardian_not_configured_message);
         }
@@ -114,7 +68,7 @@ public final class GuardianCodeDialog {
         return context.getString(R.string.guardian_wrong_code);
     }
 
-    private static boolean isGone(Context context) {
+    static boolean isGone(Context context) {
         while (context instanceof ContextWrapper) {
             if (context instanceof Activity) {
                 Activity activity = (Activity) context;
@@ -123,6 +77,75 @@ public final class GuardianCodeDialog {
             context = ((ContextWrapper) context).getBaseContext();
         }
         return false;
+    }
+
+    private static void showNotConfigured(Context context, Runnable onOpen, @Nullable Runnable onCancel) {
+        AtomicBoolean settingUp = new AtomicBoolean(false);
+        new MaterialAlertDialogBuilder(context)
+                .setTitle(R.string.guardian_not_configured_title)
+                .setMessage(R.string.guardian_not_configured_message)
+                .setPositiveButton(R.string.guardian_set_up, (dialog, which) -> {
+                    settingUp.set(true);
+                    GuardianSetCodeDialog.showInitialSetup(context, onOpen, onCancel);
+                })
+                .setNegativeButton(R.string.cancel_label, null)
+                .setOnDismissListener(dialog -> {
+                    if (!settingUp.get()) {
+                        runIfSet(onCancel);
+                    }
+                })
+                .show();
+    }
+
+    private static void showCodePrompt(Context context, @StringRes int message, @StringRes int positiveText,
+                                       CodeAction action, Runnable onAccepted, @Nullable Runnable onCancel) {
+        EditTextDialogBinding binding = EditTextDialogBinding.inflate(LayoutInflater.from(context));
+        binding.textInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        binding.textInputLayout.setHint(R.string.guardian_code_hint);
+
+        AtomicBoolean accepted = new AtomicBoolean(false);
+        AlertDialog dialog = new MaterialAlertDialogBuilder(context)
+                .setTitle(R.string.guardian_code_title)
+                .setMessage(message)
+                .setView(binding.getRoot())
+                .setPositiveButton(positiveText, null)
+                .setNegativeButton(R.string.cancel_label, null)
+                .setOnDismissListener(d -> {
+                    if (!accepted.get()) {
+                        runIfSet(onCancel);
+                    }
+                })
+                .show();
+
+        Button positiveButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+        positiveButton.setOnClickListener(v -> {
+            String code = String.valueOf(binding.textInput.getText());
+            positiveButton.setEnabled(false);
+            binding.textInputLayout.setError(null);
+            Single.fromCallable(() -> action.apply(code))
+                    .subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(result -> {
+                        if (!dialog.isShowing() || isGone(context)) {
+                            if (result == GuardianGate.Result.ACCEPTED) {
+                                GuardianGate.lock();
+                            }
+                            return;
+                        }
+                        positiveButton.setEnabled(true);
+                        if (result == GuardianGate.Result.ACCEPTED) {
+                            accepted.set(true);
+                            dialog.dismiss();
+                            onAccepted.run();
+                        } else {
+                            binding.textInput.setText("");
+                            binding.textInputLayout.setError(errorMessage(context, result));
+                        }
+                    }, error -> {
+                        positiveButton.setEnabled(true);
+                        binding.textInputLayout.setError(error.getLocalizedMessage());
+                    });
+        });
     }
 
     private static void runIfSet(@Nullable Runnable runnable) {

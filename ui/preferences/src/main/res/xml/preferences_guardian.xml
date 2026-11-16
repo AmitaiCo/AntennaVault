@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen
+        xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <Preference
+            android:key="guardianStatus"
+            android:title="@string/guardian_status_title"
+            android:selectable="false"
+            android:persistent="false" />
+
+    <Preference
+            android:key="guardianSetCode"
+            android:title="@string/guardian_set_code_title"
+            android:summary="@string/guardian_set_code_summary"
+            android:persistent="false" />
+
+    <Preference
+            android:key="guardianLockNow"
+            android:title="@string/guardian_lock_now_title"
+            android:persistent="false" />
+
+    <Preference
+            android:key="guardianEnabled"
+            android:title="@string/guardian_enabled_title"
+            android:persistent="false" />
+
+    <Preference
+            android:key="guardianWindow"
+            android:title="@string/guardian_window_title"
+            android:persistent="false" />
+
+    <Preference
+            android:key="guardianChangeCode"
+            android:title="@string/guardian_change_code_title"
+            android:persistent="false" />
+
+    <Preference
+            android:key="guardianAbout"
+            android:title="@string/guardian_about_title"
+            android:summary="@string/guardian_about_summary"
+            android:selectable="false"
+            android:persistent="false" />
+
+</PreferenceScreen>

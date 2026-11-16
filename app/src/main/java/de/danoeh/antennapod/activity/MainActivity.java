@@ -77,6 +77,7 @@ import de.danoeh.antennapod.ui.screen.drawer.NavigationNames;
 import de.danoeh.antennapod.ui.screen.episode.ItemPagerFragment;
 import de.danoeh.antennapod.ui.screen.feed.FeedItemlistFragment;
 import de.danoeh.antennapod.ui.screen.guardian.GuardianCodeDialog;
+import de.danoeh.antennapod.ui.screen.guardian.GuardianSetCodeDialog;
 import de.danoeh.antennapod.ui.screen.home.HomeFragment;
 import de.danoeh.antennapod.ui.screen.playback.audio.AudioPlayerFragment;
 import de.danoeh.antennapod.ui.screen.preferences.PreferenceActivity;
@@ -211,6 +212,10 @@ public class MainActivity extends CastEnabledActivity implements NavigationToolb
         AudioPlayerFragment audioPlayerFragment = new AudioPlayerFragment();
         transaction.replace(R.id.audioplayerFragment, audioPlayerFragment, AudioPlayerFragment.TAG);
         transaction.commit();
+
+        if (savedInstanceState == null) {
+            GuardianSetCodeDialog.showFirstRunPromptIfNeeded(this);
+        }
 
         FragmentContainerView bottomSheet = findViewById(R.id.audioplayerFragment);
         sheetBehavior = (LockableBottomSheetBehavior<FragmentContainerView>) BottomSheetBehavior.from(bottomSheet);

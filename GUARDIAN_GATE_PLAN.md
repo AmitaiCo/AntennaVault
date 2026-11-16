@@ -106,7 +106,7 @@ First run with no code set: show "Hand the phone to your guardian" and set the c
 ## 7. Implementation notes (after the steps 1-3 review)
 - UI code checks `GuardianGate.isOpen()` and prompts before calling into the database. `GuardianGateClosedException` thrown by `FeedDatabaseWriter.updateFeed`, `DBWriter.setFeedState` and `DatabaseExporter.importBackup` is only a backstop: the Subscribe buttons drop the `Future`, so a refusal there is silent.
 - `isConfigured()` false: route to first-run setup. `isEnabled()` false: the guardian turned the gate off, so `isOpen()` is always true.
-- Guardian settings (`changeCode`, `setWindowMinutes`, `setEnabled`, `removeCode`) take the code as an argument and check it at the moment of the change; an open subscribe window is not enough. `setInitialCode` only works while no code is set.
+- Guardian settings (`changeCode`, `setWindowMinutes`, `setEnabled`) take the code as an argument and check it at the moment of the change; an open subscribe window is not enough. `setInitialCode` only works while no code is set.
 - Editing a feed URL is gated (`DBWriter.changeFeedDownloadUrl`); automatic HTTP redirects during refresh are not.
 - `verify()` and `setCode()` are `@WorkerThread` (PBKDF2). Call them off the main thread.
 - Step 4 wires `onAppBackgrounded()` / `onAppForegrounded()` from `ProcessLifecycleOwner` in `:app`.
