@@ -96,9 +96,9 @@ First run with no code set: show "Hand the phone to your guardian" and set the c
 7. Manual checklist on a real phone, then a signed release APK.
 
 ## 6. Decisions for the owner
-- D1. App id and name (e.g. `org.tefillinconnection.antennapod.guarded` / "AntennaPod Guarded").
-- D2. Sync adds while locked: queue as pending for approval (recommended), or drop them.
-- D3. Links from outside (browser, share): show the preview and gate only Subscribe (recommended), or ask for the code before showing anything.
-- D4. Gate unsubscribing too? (spec: optional, off)
-- D5. Android cloud backup: remove it (recommended) or gate the restore.
-- D6. Build in GitHub Actions (recommended) or install JDK + SDK on the VPC.
+- D1. DECIDED (11-15): app name **AntennaVault**. App id: `io.github.amitaitto.antennavault` (proposed, not yet confirmed).
+- D2. OPEN. Sync adds while locked: queue as pending for approval (recommended), or drop them.
+- D3. OPEN. Links from outside (browser, share): show the preview and gate only Subscribe (recommended), or ask for the code before showing anything.
+- D4. DECIDED: do not gate unsubscribing.
+- D5. DECIDED: keep Android cloud backup, but restoring needs the code (gate `OpmlBackupAgent.restoreEntity`; it has no UI, so when locked, hold the restored feeds as pending like D2).
+- D6. DECIDED: build in GitHub Actions. The fork is public, so Actions minutes are free. Actions must be enabled on the fork (off by default for forks).
