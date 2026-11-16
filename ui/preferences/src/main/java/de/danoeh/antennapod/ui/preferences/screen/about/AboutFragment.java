@@ -15,7 +15,7 @@ import de.danoeh.antennapod.ui.preferences.R;
 import de.danoeh.antennapod.ui.preferences.screen.AnimatedPreferenceFragment;
 
 public class AboutFragment extends AnimatedPreferenceFragment {
-    private static final String SOURCE_URL = "https://github.com/AmitaiCo/AntennaPod";
+    private static final String SOURCE_URL = "https://github.com/AmitaiCo/AntennaVault";
 
 
     @Override

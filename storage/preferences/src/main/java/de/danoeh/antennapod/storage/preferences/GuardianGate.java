@@ -13,13 +13,17 @@ import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.concurrent.TimeUnit;
-import java.util.function.LongSupplier;
 
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
 public class GuardianGate {
     public enum Result { OPENED, WRONG_CODE, LOCKED_OUT, NOT_CONFIGURED }
+
+    @VisibleForTesting
+    interface Clock {
+        long now();
+    }
 
     public static final int DEFAULT_WINDOW_MINUTES = 10;
     public static final int ATTEMPTS_BEFORE_LOCKOUT = 5;
@@ -43,14 +47,14 @@ public class GuardianGate {
     private static final int KEY_BITS = 256;
 
     private static SharedPreferences prefs;
-    private static LongSupplier clock = System::currentTimeMillis;
+    private static Clock clock = System::currentTimeMillis;
 
     public static void init(Context context) {
         prefs = context.getApplicationContext().getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
     }
 
     @VisibleForTesting
-    static void setClock(LongSupplier newClock) {
+    static void setClock(Clock newClock) {
         clock = newClock;
     }
 
@@ -91,7 +95,7 @@ public class GuardianGate {
         if (prefs == null || !isConfigured()) {
             return false;
         }
-        long now = clock.getAsLong();
+        long now = clock.now();
         long openedAt = prefs.getLong(KEY_OPENED_AT, 0);
         long openUntil = prefs.getLong(KEY_OPEN_UNTIL, 0);
         return now >= openedAt && now < openUntil && !backgroundedTooLong(now);
@@ -125,14 +129,14 @@ public class GuardianGate {
         if (failed % ATTEMPTS_BEFORE_LOCKOUT == 0) {
             int round = failed / ATTEMPTS_BEFORE_LOCKOUT;
             long minutes = Math.min(1L << Math.min(round - 1, 20), MAX_LOCKOUT_MINUTES);
-            editor.putLong(KEY_LOCKOUT_UNTIL, clock.getAsLong() + TimeUnit.MINUTES.toMillis(minutes));
+            editor.putLong(KEY_LOCKOUT_UNTIL, clock.now() + TimeUnit.MINUTES.toMillis(minutes));
         }
         editor.commit();
         return Result.WRONG_CODE;
     }
 
     public static long getLockoutRemainingMillis() {
-        return Math.max(0, prefs().getLong(KEY_LOCKOUT_UNTIL, 0) - clock.getAsLong());
+        return Math.max(0, prefs().getLong(KEY_LOCKOUT_UNTIL, 0) - clock.now());
     }
 
     public static int getFailedAttempts() {
@@ -140,7 +144,7 @@ public class GuardianGate {
     }
 
     public static synchronized void openFor(int minutes) {
-        long now = clock.getAsLong();
+        long now = clock.now();
         prefs().edit()
                 .putLong(KEY_OPENED_AT, now)
                 .putLong(KEY_OPEN_UNTIL, now + TimeUnit.MINUTES.toMillis(minutes))
@@ -169,12 +173,12 @@ public class GuardianGate {
 
     public static synchronized void onAppBackgrounded() {
         if (isOpen()) {
-            prefs().edit().putLong(KEY_BACKGROUND_SINCE, clock.getAsLong()).apply();
+            prefs().edit().putLong(KEY_BACKGROUND_SINCE, clock.now()).apply();
         }
     }
 
     public static synchronized void onAppForegrounded() {
-        if (backgroundedTooLong(clock.getAsLong())) {
+        if (backgroundedTooLong(clock.now())) {
             lock();
         } else if (prefs().getLong(KEY_BACKGROUND_SINCE, 0) != 0) {
             prefs().edit().putLong(KEY_BACKGROUND_SINCE, 0).apply();
