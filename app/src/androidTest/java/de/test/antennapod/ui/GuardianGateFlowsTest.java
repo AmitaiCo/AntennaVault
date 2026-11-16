@@ -19,6 +19,8 @@ import de.danoeh.antennapod.storage.database.PodDBAdapter;
 import de.danoeh.antennapod.storage.preferences.GuardianGate;
 import de.danoeh.antennapod.storage.preferences.GuardianGateTestUtil;
 import de.danoeh.antennapod.storage.preferences.GuardianPendingFeeds;
+import de.danoeh.antennapod.storage.preferences.PlaybackPreferences;
+import de.danoeh.antennapod.storage.preferences.UsageStatistics;
 import de.danoeh.antennapod.ui.appstartintent.MainActivityStarter;
 import de.danoeh.antennapod.ui.screen.onlinefeedview.OnlineFeedViewActivity;
 import de.danoeh.antennapod.ui.screen.preferences.PreferenceActivity;
@@ -170,7 +172,14 @@ public class GuardianGateFlowsTest {
         waitForViewGlobally(allOf(withId(R.id.butAction1Text), withText(not(isEmptyOrNullString()))), TIMEOUT);
         onView(allOf(withId(R.id.butAction1), isDisplayed())).perform(click());
 
-        waitForCodePrompt();
+        try {
+            waitForCodePrompt();
+        } catch (RuntimeException | AssertionError e) {
+            throw new AssertionError("No code prompt. gateOpen=" + GuardianGate.isOpen()
+                    + " lockedPreview=" + GuardianGate.isLockedPreview(DBReader.getFeedItem(episodeId))
+                    + " playingMediaId=" + PlaybackPreferences.getCurrentlyPlayingFeedMediaId()
+                    + " streamBias=" + UsageStatistics.hasSignificantBiasTo(UsageStatistics.ACTION_STREAM), e);
+        }
         onView(withText(R.string.cancel_label)).perform(click());
         assertFalse(GuardianGate.isOpen());
     }

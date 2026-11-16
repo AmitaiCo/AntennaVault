@@ -4,6 +4,11 @@ on:
   push:
     branches: [ guardian-gate ]
   workflow_dispatch:
+    inputs:
+      test_class:
+        description: "Only run these instrumented test classes (comma separated, optional)"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -151,7 +156,7 @@ jobs:
           force-avd-creation: false
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
-          script: bash .github/workflows/runAntennaVaultEmulatorTests.sh
+          script: TEST_CLASS="${{ github.event.inputs.test_class }}" bash .github/workflows/runAntennaVaultEmulatorTests.sh
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

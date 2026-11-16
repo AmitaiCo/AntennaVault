@@ -4,8 +4,13 @@ set -o pipefail
 adb logcat -c
 
 runTests() {
-    ./gradlew connectedFreeDebugAndroidTest connectedDebugAndroidTest \
-        -Pandroid.testInstrumentationRunnerArguments.notAnnotation=de.test.antennapod.IgnoreOnCi
+    if [ -n "$TEST_CLASS" ]; then
+        ./gradlew connectedFreeDebugAndroidTest \
+            -Pandroid.testInstrumentationRunnerArguments.class="$TEST_CLASS"
+    else
+        ./gradlew connectedFreeDebugAndroidTest connectedDebugAndroidTest \
+            -Pandroid.testInstrumentationRunnerArguments.notAnnotation=de.test.antennapod.IgnoreOnCi
+    fi
 }
 
 if runTests || runTests; then
