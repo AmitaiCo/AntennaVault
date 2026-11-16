@@ -52,6 +52,8 @@ import static de.test.antennapod.EspressoTestUtils.clickChildViewWithId;
 import static de.test.antennapod.EspressoTestUtils.clickPreference;
 import static de.test.antennapod.EspressoTestUtils.waitForViewGlobally;
 import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.isEmptyOrNullString;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -111,6 +113,7 @@ public class GuardianGateFlowsTest {
     }
 
     private void typeCode(String code) {
+        waitForViewGlobally(withId(R.id.textInput), TIMEOUT);
         onView(withId(R.id.textInput)).perform(replaceText(code), pressImeActionButton());
     }
 
@@ -162,7 +165,7 @@ public class GuardianGateFlowsTest {
         launchMain(new Intent(context, MainActivity.class)
                 .putExtras(new MainActivityStarter(context).withOpenEpisode(episodeId).getIntent()));
 
-        waitForViewGlobally(allOf(withId(R.id.butAction1), isDisplayed()), TIMEOUT);
+        waitForViewGlobally(allOf(withId(R.id.butAction1Text), withText(not(isEmptyOrNullString()))), TIMEOUT);
         onView(allOf(withId(R.id.butAction1), isDisplayed())).perform(click());
 
         waitForCodePrompt();
@@ -257,9 +260,8 @@ public class GuardianGateFlowsTest {
         typeCode(GuardianGateTestUtil.CODE);
 
         Awaitility.await().atMost(TIMEOUT, TimeUnit.MILLISECONDS)
-                .until(() -> DBReader.getFeedList().size() == 1);
+                .until(() -> DBReader.getFeedList().size() == 1 && GuardianPendingFeeds.count() == 0);
         assertEquals(Feed.STATE_SUBSCRIBED, DBReader.getFeedList().get(0).getState());
-        assertEquals(0, GuardianPendingFeeds.count());
         assertFalse(GuardianGate.isOpen());
     }
 
