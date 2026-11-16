@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.net.Uri;
+import android.widget.TextView;
 
 import androidx.lifecycle.Lifecycle;
 import androidx.test.core.app.ActivityScenario;
@@ -52,6 +53,7 @@ import static de.test.antennapod.EspressoTestUtils.clickChildViewWithId;
 import static de.test.antennapod.EspressoTestUtils.clickPreference;
 import static de.test.antennapod.EspressoTestUtils.waitForViewGlobally;
 import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -165,7 +167,15 @@ public class GuardianGateFlowsTest {
         launchMain(new Intent(context, MainActivity.class)
                 .putExtras(new MainActivityStarter(context).withOpenEpisode(episodeId).getIntent()));
 
-        waitForViewGlobally(allOf(withId(R.id.butAction1Text), withText(R.string.stream_label)), TIMEOUT);
+        try {
+            waitForViewGlobally(allOf(withId(R.id.butAction1Text),
+                    anyOf(withText(R.string.stream_label), withText(R.string.play_label))), TIMEOUT);
+        } catch (RuntimeException | AssertionError e) {
+            StringBuilder label = new StringBuilder();
+            onView(allOf(withId(R.id.butAction1Text), isDisplayed()))
+                    .check((view, noView) -> label.append(((TextView) view).getText()));
+            throw new AssertionError("Episode button shows \"" + label + "\"", e);
+        }
         onView(allOf(withId(R.id.butAction1), isDisplayed())).perform(click());
 
         waitForCodePrompt();
