@@ -51,6 +51,7 @@ public final class GuardianCodeDialog {
 
     public static void runWhenOpen(@NonNull Context context, @NonNull Runnable onOpen,
                                    @Nullable Runnable onCancel) {
+        Log.d(TAG, "runWhenOpen: open=" + GuardianGate.isOpen() + " configured=" + GuardianGate.isConfigured());
         if (GuardianGate.isOpen()) {
             onOpen.run();
         } else if (!GuardianGate.isConfigured()) {
