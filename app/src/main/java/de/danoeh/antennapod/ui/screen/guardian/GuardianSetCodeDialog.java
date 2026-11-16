@@ -68,11 +68,10 @@ public final class GuardianSetCodeDialog {
 
         Button saveButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
         saveButton.setOnClickListener(v -> {
-            String currentCode = String.valueOf(binding.currentCode.getText());
-            String newCode = String.valueOf(binding.newCode.getText());
             binding.currentCodeLayout.setError(null);
             binding.newCodeLayout.setError(null);
             binding.confirmCodeLayout.setError(null);
+            String newCode = String.valueOf(binding.newCode.getText());
             if (newCode.length() < GuardianGate.MIN_CODE_LENGTH) {
                 binding.newCodeLayout.setError(context.getResources().getQuantityString(
                         R.plurals.guardian_code_too_short, GuardianGate.MIN_CODE_LENGTH,
@@ -84,6 +83,7 @@ public final class GuardianSetCodeDialog {
                 return;
             }
             saveButton.setEnabled(false);
+            String currentCode = String.valueOf(binding.currentCode.getText());
             Single.fromCallable(() -> changing
                             ? GuardianGate.changeCode(currentCode, newCode)
                             : setInitialCodeAndOpen(newCode))
