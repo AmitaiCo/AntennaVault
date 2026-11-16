@@ -28,7 +28,7 @@ public final class GuardianGateTestUtil {
     }
 
     public static void open() {
-        GuardianGate.Result result = GuardianGate.verify(CODE);
+        GuardianGate.Result result = GuardianGate.unlock(CODE);
         if (result != GuardianGate.Result.ACCEPTED) {
             throw new IllegalStateException("Could not open guardian gate: " + result);
         }

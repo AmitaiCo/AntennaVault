@@ -3,7 +3,6 @@ package de.danoeh.antennapod.ui.screen.guardian;
 import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.widget.Button;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.StringRes;
@@ -46,16 +45,17 @@ public final class GuardianSetCodeDialog {
     private static void show(Context context, boolean changing, @StringRes int title, Runnable onDone) {
         GuardianSetCodeDialogBinding binding = GuardianSetCodeDialogBinding.inflate(LayoutInflater.from(context));
         binding.currentCodeLayout.setVisibility(changing ? View.VISIBLE : View.GONE);
+        GuardianCodeDialog.excludeFromAutofill(binding.getRoot());
 
         AlertDialog dialog = new MaterialAlertDialogBuilder(context)
                 .setTitle(title)
                 .setView(binding.getRoot())
-                .setPositiveButton(R.string.confirm_label, null)
+                .setPositiveButton(R.string.guardian_save_code, null)
                 .setNegativeButton(R.string.cancel_label, null)
                 .show();
 
-        Button saveButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
-        saveButton.setOnClickListener(v -> {
+        GuardianCodeDialog.submitOnDone(binding.confirmCode, dialog);
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
             binding.currentCodeLayout.setError(null);
             binding.newCodeLayout.setError(null);
             binding.confirmCodeLayout.setError(null);
@@ -71,7 +71,7 @@ public final class GuardianSetCodeDialog {
                 return;
             }
             String currentCode = String.valueOf(binding.currentCode.getText());
-            GuardianCodeDialog.checkInBackground(context, dialog, saveButton,
+            GuardianCodeDialog.checkInBackground(dialog,
                     () -> changing ? GuardianGate.changeCode(currentCode, newCode) : setInitialCode(newCode),
                     result -> {
                         if (result == GuardianGate.Result.ACCEPTED) {
@@ -81,7 +81,7 @@ public final class GuardianSetCodeDialog {
                             binding.currentCode.setText("");
                             binding.currentCodeLayout.setError(GuardianCodeDialog.errorMessage(context, result));
                         }
-                    }, error -> binding.newCodeLayout.setError(error.getLocalizedMessage()), false);
+                    }, binding.newCodeLayout, false);
         });
     }
 

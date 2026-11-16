@@ -480,17 +480,7 @@ public class MainActivity extends CastEnabledActivity implements NavigationToolb
     }
 
     public void loadFragment(String tag, Bundle args) {
-        if (AddFeedFragment.TAG.equals(tag) && !GuardianGate.isOpen()) {
-            boolean nothingShown = getSupportFragmentManager().findFragmentById(R.id.main_content_view) == null;
-            if (nothingShown && !GuardianGate.isConfigured()) {
-                loadFragment(SubscriptionFragment.TAG, null);
-                return;
-            }
-            GuardianCodeDialog.runWhenOpen(this, () -> loadFragment(tag, args), () -> {
-                if (getSupportFragmentManager().findFragmentById(R.id.main_content_view) == null) {
-                    loadFragment(SubscriptionFragment.TAG, null);
-                }
-            });
+        if (promptBeforeAddFeed(tag, args)) {
             return;
         }
         NavDrawerFragment.saveLastNavFragment(this, tag);
@@ -914,5 +904,22 @@ public class MainActivity extends CastEnabledActivity implements NavigationToolb
             return true;
         }
         return super.onKeyUp(keyCode, event);
+    }
+
+    private boolean promptBeforeAddFeed(String tag, Bundle args) {
+        if (!AddFeedFragment.TAG.equals(tag) || GuardianGate.isOpen()) {
+            return false;
+        }
+        boolean nothingShown = getSupportFragmentManager().findFragmentById(R.id.main_content_view) == null;
+        if (nothingShown && !GuardianGate.isConfigured()) {
+            loadFragment(SubscriptionFragment.TAG, null);
+            return true;
+        }
+        GuardianCodeDialog.runWhenOpen(this, () -> loadFragment(tag, args), () -> {
+            if (getSupportFragmentManager().findFragmentById(R.id.main_content_view) == null) {
+                loadFragment(SubscriptionFragment.TAG, null);
+            }
+        });
+        return true;
     }
 }

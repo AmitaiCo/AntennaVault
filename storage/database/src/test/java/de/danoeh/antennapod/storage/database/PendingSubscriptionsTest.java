@@ -106,6 +106,14 @@ public class PendingSubscriptionsTest {
     }
 
     @Test
+    public void approveKeepsAnAlreadyOpenGateOpen() {
+        GuardianGateTestUtil.open();
+        PendingSubscriptions.addOrHold(context, URL, "Title");
+        PendingSubscriptions.approve(context, CODE, Collections.singletonList(URL));
+        assertTrue(GuardianGate.isOpen());
+    }
+
+    @Test
     public void approveWithWrongCodeChangesNothing() {
         PendingSubscriptions.addOrHold(context, URL, "Title");
         assertEquals(GuardianGate.Result.WRONG_CODE,
@@ -133,7 +141,7 @@ public class PendingSubscriptionsTest {
     @Test
     public void approveIgnoresFeedsNoLongerPending() {
         PendingSubscriptions.addOrHold(context, URL, "Title");
-        PendingSubscriptions.forget(URL);
+        GuardianPendingFeeds.remove(URL);
         PendingSubscriptions.approve(context, CODE, Collections.singletonList(URL));
         assertTrue(DBReader.getFeedList().isEmpty());
     }

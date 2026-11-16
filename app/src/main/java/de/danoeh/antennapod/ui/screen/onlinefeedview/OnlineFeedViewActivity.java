@@ -124,9 +124,13 @@ public class OnlineFeedViewActivity extends AppCompatActivity {
                     .subscribeOn(Schedulers.io())
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(feed -> openFeed(feed.getId()),
-                        error -> GuardianCodeDialog.runWhenOpen(this, () -> lookupUrlAndDownload(url), this::finish),
-                        () -> GuardianCodeDialog.runWhenOpen(this, () -> lookupUrlAndDownload(url), this::finish));
+                        error -> unlockThenLookup(url),
+                        () -> unlockThenLookup(url));
         }
+    }
+
+    private void unlockThenLookup(String url) {
+        GuardianCodeDialog.runWhenOpen(this, () -> lookupUrlAndDownload(url), this::finish);
     }
 
     @Nullable

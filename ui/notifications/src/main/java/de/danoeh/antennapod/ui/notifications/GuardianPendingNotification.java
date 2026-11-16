@@ -32,6 +32,7 @@ public final class GuardianPendingNotification {
                 .setContentIntent(pendingIntent)
                 .setSmallIcon(R.drawable.ic_notification_guardian)
                 .setAutoCancel(true)
+                .setOnlyAlertOnce(true)
                 .build();
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
                 == PackageManager.PERMISSION_GRANTED) {

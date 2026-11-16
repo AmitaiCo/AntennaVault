@@ -23,7 +23,7 @@ public final class PendingSubscriptions {
 
     @WorkerThread
     public static boolean addOrHold(@NonNull Context context, @NonNull String url, @Nullable String title) {
-        if (GuardianGate.isConfigured() && !GuardianGate.isEnabled()) {
+        if (GuardianGate.isTurnedOff()) {
             subscribe(context, url, title);
             return false;
         }
@@ -34,7 +34,8 @@ public final class PendingSubscriptions {
     @WorkerThread
     public static GuardianGate.Result approve(@NonNull Context context, @NonNull String code,
                                               @NonNull Collection<String> urls) {
-        GuardianGate.Result result = GuardianGate.verify(code);
+        boolean wasOpen = GuardianGate.isOpen();
+        GuardianGate.Result result = GuardianGate.unlock(code);
         if (result != GuardianGate.Result.ACCEPTED) {
             return result;
         }
@@ -47,7 +48,9 @@ public final class PendingSubscriptions {
                 }
             }
         } finally {
-            GuardianGate.lock();
+            if (!wasOpen) {
+                GuardianGate.lock();
+            }
         }
         return result;
     }
@@ -55,7 +58,7 @@ public final class PendingSubscriptions {
     @NonNull
     @WorkerThread
     public static GuardianGate.Result reject(@NonNull String code, @NonNull Collection<String> urls) {
-        GuardianGate.Result result = GuardianGate.confirm(code);
+        GuardianGate.Result result = GuardianGate.verify(code);
         if (result != GuardianGate.Result.ACCEPTED) {
             return result;
         }
@@ -64,11 +67,6 @@ public final class PendingSubscriptions {
             SynchronizationQueue.getInstance().enqueueFeedRemoved(url);
         }
         return result;
-    }
-
-    @WorkerThread
-    public static void forget(@NonNull String url) {
-        GuardianPendingFeeds.remove(url);
     }
 
     private static void subscribe(Context context, String url, @Nullable String title) {

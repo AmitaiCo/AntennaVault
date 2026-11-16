@@ -3,10 +3,15 @@ package de.danoeh.antennapod.ui.screen.guardian;
 import android.app.Activity;
 import android.content.Context;
 import android.content.ContextWrapper;
+import android.os.Build;
 import android.text.InputType;
 import android.text.format.DateUtils;
+import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.View;
+import android.view.inputmethod.EditorInfo;
 import android.widget.Button;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -16,6 +21,7 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.FragmentActivity;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.textfield.TextInputLayout;
 
 import de.danoeh.antennapod.R;
 import de.danoeh.antennapod.databinding.EditTextDialogBinding;
@@ -29,6 +35,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class GuardianCodeDialog {
+    private static final String TAG = "GuardianCodeDialog";
 
     public interface CodeAction {
         @WorkerThread
@@ -50,7 +57,7 @@ public final class GuardianCodeDialog {
             showNotConfigured(context, onCancel);
         } else {
             showCodePrompt(context, R.string.guardian_code_message, R.string.guardian_unlock,
-                    GuardianGate::verify, onOpen, onCancel, true);
+                    GuardianGate::unlock, onOpen, onCancel, true);
         }
     }
 
@@ -59,15 +66,16 @@ public final class GuardianCodeDialog {
         showCodePrompt(context, message, R.string.confirm_label, action, onAccepted, null, false);
     }
 
-    static void checkInBackground(Context context, AlertDialog dialog, Button button,
-                                  Callable<GuardianGate.Result> check, Consumer<GuardianGate.Result> onResult,
-                                  Consumer<Throwable> onError, boolean lockIfAbandoned) {
+    static void checkInBackground(AlertDialog dialog, Callable<GuardianGate.Result> check,
+                                  Consumer<GuardianGate.Result> onResult, TextInputLayout errorLayout,
+                                  boolean lockIfAbandoned) {
+        Button button = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
         button.setEnabled(false);
         Single.fromCallable(check)
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(result -> {
-                    if (!dialog.isShowing() || isGone(context)) {
+                    if (!dialog.isShowing() || isGone(dialog.getContext())) {
                         if (lockIfAbandoned && result == GuardianGate.Result.ACCEPTED) {
                             GuardianGate.lock();
                         }
@@ -76,9 +84,10 @@ public final class GuardianCodeDialog {
                     button.setEnabled(true);
                     onResult.accept(result);
                 }, error -> {
+                    Log.e(TAG, "Guardian code check failed", error);
                     if (dialog.isShowing()) {
                         button.setEnabled(true);
-                        onError.accept(error);
+                        errorLayout.setError(dialog.getContext().getString(R.string.guardian_unexpected_error));
                     }
                 });
     }
@@ -93,6 +102,22 @@ public final class GuardianCodeDialog {
             return context.getString(R.string.guardian_locked_out, DateUtils.formatElapsedTime(seconds));
         }
         return context.getString(R.string.guardian_wrong_code);
+    }
+
+    static void excludeFromAutofill(View view) {
+        if (Build.VERSION.SDK_INT >= 26) {
+            view.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS);
+        }
+    }
+
+    static void submitOnDone(TextView field, AlertDialog dialog) {
+        field.setOnEditorActionListener((v, actionId, event) -> {
+            if (actionId == EditorInfo.IME_ACTION_DONE) {
+                dialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick();
+                return true;
+            }
+            return false;
+        });
     }
 
     private static boolean isGone(Context context) {
@@ -124,7 +149,10 @@ public final class GuardianCodeDialog {
                                        boolean lockIfAbandoned) {
         EditTextDialogBinding binding = EditTextDialogBinding.inflate(LayoutInflater.from(context));
         binding.textInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        binding.textInput.setImeOptions(EditorInfo.IME_ACTION_DONE);
         binding.textInputLayout.setHint(R.string.guardian_code_hint);
+        binding.textInputLayout.setEndIconMode(TextInputLayout.END_ICON_PASSWORD_TOGGLE);
+        excludeFromAutofill(binding.getRoot());
 
         AtomicBoolean accepted = new AtomicBoolean(false);
         AlertDialog dialog = new MaterialAlertDialogBuilder(context)
@@ -140,11 +168,11 @@ public final class GuardianCodeDialog {
                 })
                 .show();
 
-        Button positiveButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
-        positiveButton.setOnClickListener(v -> {
+        submitOnDone(binding.textInput, dialog);
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
             String code = String.valueOf(binding.textInput.getText());
             binding.textInputLayout.setError(null);
-            checkInBackground(context, dialog, positiveButton, () -> action.apply(code), result -> {
+            checkInBackground(dialog, () -> action.apply(code), result -> {
                 if (result == GuardianGate.Result.ACCEPTED) {
                     accepted.set(true);
                     dialog.dismiss();
@@ -153,7 +181,7 @@ public final class GuardianCodeDialog {
                     binding.textInput.setText("");
                     binding.textInputLayout.setError(errorMessage(context, result));
                 }
-            }, error -> binding.textInputLayout.setError(error.getLocalizedMessage()), lockIfAbandoned);
+            }, binding.textInputLayout, lockIfAbandoned);
         });
     }
 

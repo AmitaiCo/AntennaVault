@@ -29,8 +29,7 @@ public class DownloadServiceInterfaceImpl extends DownloadServiceInterface {
     private static final String TAG = "DownloadServiceImpl";
 
     public void downloadNow(Context context, FeedItem item, boolean ignoreConstraints) {
-        if (GuardianGate.isLockedPreview(item)) {
-            Log.w(TAG, "Not downloading an episode of an unsubscribed podcast while the guardian gate is closed");
+        if (isLockedPreview(item)) {
             return;
         }
         OneTimeWorkRequest.Builder workRequest = getRequest(context, item);
@@ -45,8 +44,7 @@ public class DownloadServiceInterfaceImpl extends DownloadServiceInterface {
     }
 
     public void download(Context context, FeedItem item) {
-        if (GuardianGate.isLockedPreview(item)) {
-            Log.w(TAG, "Not downloading an episode of an unsubscribed podcast while the guardian gate is closed");
+        if (isLockedPreview(item)) {
             return;
         }
         if (item.isDownloaded()) {
@@ -56,6 +54,14 @@ public class DownloadServiceInterfaceImpl extends DownloadServiceInterface {
         workRequest.setConstraints(getConstraints());
         WorkManager.getInstance(context).enqueueUniqueWork(item.getMedia().getDownloadUrl(),
                 ExistingWorkPolicy.KEEP, workRequest.build());
+    }
+
+    private static boolean isLockedPreview(FeedItem item) {
+        if (GuardianGate.isLockedPreview(item)) {
+            Log.w(TAG, "Not downloading an episode of an unsubscribed podcast while the guardian gate is closed");
+            return true;
+        }
+        return false;
     }
 
     private static OneTimeWorkRequest.Builder getRequest(Context context, FeedItem item) {

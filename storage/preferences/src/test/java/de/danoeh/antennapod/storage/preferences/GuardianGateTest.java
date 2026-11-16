@@ -45,15 +45,16 @@ public class GuardianGateTest {
 
     private void failTimes(int times) {
         for (int i = 0; i < times; i++) {
-            assertEquals(GuardianGate.Result.WRONG_CODE, GuardianGate.verify(WRONG_CODE));
+            assertEquals(GuardianGate.Result.WRONG_CODE, GuardianGate.unlock(WRONG_CODE));
         }
     }
 
     @Test
     public void notConfiguredIsClosed() {
         assertFalse(GuardianGate.isConfigured());
+        assertFalse(GuardianGate.isTurnedOff());
         assertFalse(GuardianGate.isOpen());
-        assertEquals(GuardianGate.Result.NOT_CONFIGURED, GuardianGate.verify(CODE));
+        assertEquals(GuardianGate.Result.NOT_CONFIGURED, GuardianGate.unlock(CODE));
     }
 
     @Test
@@ -61,14 +62,14 @@ public class GuardianGateTest {
         GuardianGate.setInitialCode(CODE);
         assertTrue(GuardianGate.isConfigured());
         assertFalse(GuardianGate.isOpen());
-        assertEquals(GuardianGate.Result.ACCEPTED, GuardianGate.verify(CODE));
+        assertEquals(GuardianGate.Result.ACCEPTED, GuardianGate.unlock(CODE));
         assertTrue(GuardianGate.isOpen());
     }
 
     @Test
     public void wrongCodeStaysClosed() {
         GuardianGate.setInitialCode(CODE);
-        assertEquals(GuardianGate.Result.WRONG_CODE, GuardianGate.verify(WRONG_CODE));
+        assertEquals(GuardianGate.Result.WRONG_CODE, GuardianGate.unlock(WRONG_CODE));
         assertFalse(GuardianGate.isOpen());
         assertEquals(1, GuardianGate.getFailedAttempts());
     }
@@ -102,7 +103,7 @@ public class GuardianGateTest {
     @Test
     public void windowExpires() {
         GuardianGate.setInitialCode(CODE);
-        GuardianGate.verify(CODE);
+        GuardianGate.unlock(CODE);
         advanceMinutes(GuardianGate.DEFAULT_WINDOW_MINUTES - 1);
         assertTrue(GuardianGate.isOpen());
         advanceMinutes(1);
@@ -113,7 +114,7 @@ public class GuardianGateTest {
     public void openRemainingCountsDown() {
         GuardianGate.setInitialCode(CODE);
         assertEquals(0, GuardianGate.getOpenRemainingMillis());
-        GuardianGate.verify(CODE);
+        GuardianGate.unlock(CODE);
         advanceMinutes(4);
         assertEquals(TimeUnit.MINUTES.toMillis(GuardianGate.DEFAULT_WINDOW_MINUTES - 4),
                 GuardianGate.getOpenRemainingMillis());
@@ -123,7 +124,7 @@ public class GuardianGateTest {
     public void customWindowAppliesFromNextOpen() {
         GuardianGate.setInitialCode(CODE);
         assertEquals(GuardianGate.Result.ACCEPTED, GuardianGate.setWindowMinutes(CODE, 30));
-        GuardianGate.verify(CODE);
+        GuardianGate.unlock(CODE);
         advanceMinutes(29);
         assertTrue(GuardianGate.isOpen());
         advanceMinutes(1);
@@ -139,7 +140,7 @@ public class GuardianGateTest {
     @Test
     public void clockSetBackwardsCloses() {
         GuardianGate.setInitialCode(CODE);
-        GuardianGate.verify(CODE);
+        GuardianGate.unlock(CODE);
         now -= TimeUnit.MINUTES.toMillis(1);
         assertFalse(GuardianGate.isOpen());
     }
@@ -147,7 +148,7 @@ public class GuardianGateTest {
     @Test
     public void lockCloses() {
         GuardianGate.setInitialCode(CODE);
-        GuardianGate.verify(CODE);
+        GuardianGate.unlock(CODE);
         GuardianGate.lock();
         assertFalse(GuardianGate.isOpen());
     }
@@ -155,7 +156,7 @@ public class GuardianGateTest {
     @Test
     public void shortBackgroundKeepsOpenForRestOfWindow() {
         GuardianGate.setInitialCode(CODE);
-        GuardianGate.verify(CODE);
+        GuardianGate.unlock(CODE);
         GuardianGate.onAppBackgrounded();
         now += GuardianGate.BACKGROUND_GRACE_MILLIS;
         GuardianGate.onAppForegrounded();
@@ -166,7 +167,7 @@ public class GuardianGateTest {
     @Test
     public void longBackgroundClosesEvenBeforeForegroundCallback() {
         GuardianGate.setInitialCode(CODE);
-        GuardianGate.verify(CODE);
+        GuardianGate.unlock(CODE);
         GuardianGate.onAppBackgrounded();
         now += GuardianGate.BACKGROUND_GRACE_MILLIS + 1;
         assertFalse(GuardianGate.isOpen());
@@ -177,7 +178,7 @@ public class GuardianGateTest {
     @Test
     public void repeatedBackgroundCallbacksDoNotRestartGrace() {
         GuardianGate.setInitialCode(CODE);
-        GuardianGate.verify(CODE);
+        GuardianGate.unlock(CODE);
         GuardianGate.onAppBackgrounded();
         now += GuardianGate.BACKGROUND_GRACE_MILLIS;
         GuardianGate.onAppBackgrounded();
@@ -192,17 +193,17 @@ public class GuardianGateTest {
         assertEquals(0, GuardianGate.getLockoutRemainingMillis());
         failTimes(1);
         assertEquals(TimeUnit.MINUTES.toMillis(1), GuardianGate.getLockoutRemainingMillis());
-        assertEquals(GuardianGate.Result.LOCKED_OUT, GuardianGate.verify(CODE));
+        assertEquals(GuardianGate.Result.LOCKED_OUT, GuardianGate.unlock(CODE));
         assertFalse(GuardianGate.isOpen());
         advanceMinutes(1);
-        assertEquals(GuardianGate.Result.ACCEPTED, GuardianGate.verify(CODE));
+        assertEquals(GuardianGate.Result.ACCEPTED, GuardianGate.unlock(CODE));
     }
 
     @Test
     public void guessesDuringLockoutAreNotCounted() {
         GuardianGate.setInitialCode(CODE);
         failTimes(GuardianGate.ATTEMPTS_BEFORE_LOCKOUT);
-        assertEquals(GuardianGate.Result.LOCKED_OUT, GuardianGate.verify(WRONG_CODE));
+        assertEquals(GuardianGate.Result.LOCKED_OUT, GuardianGate.unlock(WRONG_CODE));
         assertEquals(GuardianGate.ATTEMPTS_BEFORE_LOCKOUT, GuardianGate.getFailedAttempts());
     }
 
@@ -233,7 +234,7 @@ public class GuardianGateTest {
     public void correctCodeResetsFailures() {
         GuardianGate.setInitialCode(CODE);
         failTimes(4);
-        GuardianGate.verify(CODE);
+        GuardianGate.unlock(CODE);
         assertEquals(0, GuardianGate.getFailedAttempts());
         failTimes(4);
         assertEquals(0, GuardianGate.getLockoutRemainingMillis());
@@ -245,20 +246,20 @@ public class GuardianGateTest {
         assertEquals(GuardianGate.Result.WRONG_CODE, GuardianGate.changeCode(WRONG_CODE, OTHER_CODE));
         assertEquals(1, GuardianGate.getFailedAttempts());
         assertEquals(GuardianGate.Result.ACCEPTED, GuardianGate.changeCode(CODE, OTHER_CODE));
-        assertEquals(GuardianGate.Result.WRONG_CODE, GuardianGate.verify(CODE));
-        assertEquals(GuardianGate.Result.ACCEPTED, GuardianGate.verify(OTHER_CODE));
+        assertEquals(GuardianGate.Result.WRONG_CODE, GuardianGate.unlock(CODE));
+        assertEquals(GuardianGate.Result.ACCEPTED, GuardianGate.unlock(OTHER_CODE));
     }
 
     @Test
     public void openWindowDoesNotAllowSettingsChangesWithoutCode() {
         GuardianGate.setInitialCode(CODE);
-        GuardianGate.verify(CODE);
+        GuardianGate.unlock(CODE);
         assertEquals(GuardianGate.Result.WRONG_CODE, GuardianGate.changeCode(WRONG_CODE, OTHER_CODE));
         assertEquals(GuardianGate.Result.WRONG_CODE, GuardianGate.setEnabled(WRONG_CODE, false));
         assertEquals(GuardianGate.Result.WRONG_CODE, GuardianGate.setWindowMinutes(WRONG_CODE, 60));
         assertTrue(GuardianGate.isEnabled());
         assertEquals(GuardianGate.DEFAULT_WINDOW_MINUTES, GuardianGate.getWindowMinutes());
-        assertEquals(GuardianGate.Result.ACCEPTED, GuardianGate.verify(CODE));
+        assertEquals(GuardianGate.Result.ACCEPTED, GuardianGate.unlock(CODE));
     }
 
     @Test
@@ -275,6 +276,7 @@ public class GuardianGateTest {
         assertEquals(GuardianGate.Result.ACCEPTED, GuardianGate.setEnabled(CODE, false));
         advanceMinutes(TimeUnit.DAYS.toMinutes(30));
         assertFalse(GuardianGate.isEnabled());
+        assertTrue(GuardianGate.isTurnedOff());
         assertTrue(GuardianGate.isOpen());
     }
 
@@ -288,11 +290,11 @@ public class GuardianGateTest {
     }
 
     @Test
-    public void confirmChecksCodeWithoutOpening() {
+    public void verifyChecksCodeWithoutUnlocking() {
         GuardianGate.setInitialCode(CODE);
-        assertEquals(GuardianGate.Result.ACCEPTED, GuardianGate.confirm(CODE));
+        assertEquals(GuardianGate.Result.ACCEPTED, GuardianGate.verify(CODE));
         assertFalse(GuardianGate.isOpen());
-        assertEquals(GuardianGate.Result.WRONG_CODE, GuardianGate.confirm(WRONG_CODE));
+        assertEquals(GuardianGate.Result.WRONG_CODE, GuardianGate.verify(WRONG_CODE));
         assertEquals(1, GuardianGate.getFailedAttempts());
     }
 
@@ -306,7 +308,7 @@ public class GuardianGateTest {
         assertTrue(GuardianGate.isLockedPreview(preview));
         assertFalse(GuardianGate.isLockedPreview(subscribed));
         assertFalse(GuardianGate.isLockedPreview((Feed) null));
-        GuardianGate.verify(CODE);
+        GuardianGate.unlock(CODE);
         assertFalse(GuardianGate.isLockedPreview(preview));
     }
 }

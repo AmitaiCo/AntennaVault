@@ -93,20 +93,17 @@ public class OpmlImportActivity extends ToolbarActivity {
             viewBinding.progressBar.setVisibility(View.VISIBLE);
             Completable.fromAction(() -> {
                 SparseBooleanArray checked = viewBinding.feedlist.getCheckedItemPositions();
-                try {
-                    for (int i = 0; i < checked.size(); i++) {
-                        if (!checked.valueAt(i)) {
-                            continue;
-                        }
-                        OpmlElement element = readElements.get(checked.keyAt(i));
-                        Feed feed = new Feed(element.getXmlUrl(), null,
-                                element.getText() != null ? element.getText() : "Unknown podcast");
-                        feed.setItems(Collections.emptyList());
-                        FeedDatabaseWriter.updateFeed(this, feed, false);
+                for (int i = 0; i < checked.size(); i++) {
+                    if (!checked.valueAt(i)) {
+                        continue;
                     }
-                } finally {
-                    FeedUpdateManager.getInstance().runOnce(this);
+                    OpmlElement element = readElements.get(checked.keyAt(i));
+                    Feed feed = new Feed(element.getXmlUrl(), null,
+                            element.getText() != null ? element.getText() : "Unknown podcast");
+                    feed.setItems(Collections.emptyList());
+                    FeedDatabaseWriter.updateFeed(this, feed, false);
                 }
+                FeedUpdateManager.getInstance().runOnce(this);
             })
                     .subscribeOn(Schedulers.computation())
                     .observeOn(AndroidSchedulers.mainThread())
@@ -120,8 +117,11 @@ public class OpmlImportActivity extends ToolbarActivity {
                             }, e -> {
                                 e.printStackTrace();
                                 viewBinding.progressBar.setVisibility(View.GONE);
-                                String message = e instanceof GuardianGateClosedException
-                                        ? getString(R.string.guardian_import_interrupted) : e.getMessage();
+                                String message = e.getMessage();
+                                if (e instanceof GuardianGateClosedException) {
+                                    message = getString(R.string.guardian_import_interrupted);
+                                    FeedUpdateManager.getInstance().runOnce(this);
+                                }
                                 Toast.makeText(this, message, Toast.LENGTH_LONG).show();
                             });
         }));

@@ -68,14 +68,15 @@ public class GuardianGate {
     }
 
     public static boolean isEnabled() {
-        return isConfigured() && !prefs().getBoolean(KEY_DISABLED, false);
+        return isConfigured() && !isTurnedOff();
+    }
+
+    public static boolean isTurnedOff() {
+        return isConfigured() && prefs().getBoolean(KEY_DISABLED, false);
     }
 
     public static boolean isOpen() {
-        if (!isConfigured()) {
-            return false;
-        }
-        return !isEnabled() || getOpenRemainingMillis() > 0;
+        return isConfigured() && (isTurnedOff() || getOpenRemainingMillis() > 0);
     }
 
     public static boolean isLockedPreview(@Nullable Feed feed) {
@@ -117,7 +118,7 @@ public class GuardianGate {
     @NonNull
     @WorkerThread
     @SuppressLint("ApplySharedPref")
-    public static Result verify(@NonNull String code) {
+    public static Result unlock(@NonNull String code) {
         Result result = checkCode(code);
         if (result == Result.ACCEPTED) {
             synchronized (GuardianGate.class) {
@@ -134,7 +135,7 @@ public class GuardianGate {
 
     @NonNull
     @WorkerThread
-    public static Result confirm(@NonNull String code) {
+    public static Result verify(@NonNull String code) {
         return checkCode(code);
     }
 

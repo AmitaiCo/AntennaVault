@@ -29,9 +29,11 @@
             android:title="@string/guardian_lock_now_title"
             android:persistent="false" />
 
-    <Preference
+    <SwitchPreferenceCompat
             android:key="guardianEnabled"
             android:title="@string/guardian_enabled_title"
+            android:summaryOn="@string/guardian_enabled_on"
+            android:summaryOff="@string/guardian_enabled_off"
             android:persistent="false" />
 
     <Preference

@@ -179,7 +179,7 @@ public class SyncService extends Worker {
 
         // remove subscription if not just subscribed (again)
         for (String downloadUrl : subscriptionChanges.getRemoved()) {
-            PendingSubscriptions.forget(downloadUrl);
+            GuardianPendingFeeds.remove(downloadUrl);
             if (!queuedAddedFeeds.contains(downloadUrl)) {
                 DBWriter.removeFeedWithDownloadUrl(getApplicationContext(), downloadUrl);
             }

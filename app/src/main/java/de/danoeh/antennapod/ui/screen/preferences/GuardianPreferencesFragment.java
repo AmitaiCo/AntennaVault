@@ -6,9 +6,9 @@ import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
 import android.text.format.DateUtils;
-import android.util.Log;
 
 import androidx.preference.Preference;
+import androidx.preference.SwitchPreferenceCompat;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
@@ -24,9 +24,6 @@ import de.danoeh.antennapod.storage.preferences.GuardianPendingFeeds;
 import de.danoeh.antennapod.ui.preferences.screen.AnimatedPreferenceFragment;
 import de.danoeh.antennapod.ui.screen.guardian.GuardianCodeDialog;
 import de.danoeh.antennapod.ui.screen.guardian.GuardianSetCodeDialog;
-import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
-import io.reactivex.rxjava3.core.Completable;
-import io.reactivex.rxjava3.schedulers.Schedulers;
 
 public class GuardianPreferencesFragment extends AnimatedPreferenceFragment {
     private static final String PREF_STATUS = "guardianStatus";
@@ -36,7 +33,6 @@ public class GuardianPreferencesFragment extends AnimatedPreferenceFragment {
     private static final String PREF_ENABLED = "guardianEnabled";
     private static final String PREF_WINDOW = "guardianWindow";
     private static final String PREF_CHANGE_CODE = "guardianChangeCode";
-    private static final String TAG = "GuardianPrefFragment";
     private static final int[] WINDOW_OPTIONS_MINUTES = {5, 10, 15, 30, 60};
 
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -60,18 +56,16 @@ public class GuardianPreferencesFragment extends AnimatedPreferenceFragment {
             return true;
         });
         findPreference(PREF_LOCK_NOW).setOnPreferenceClickListener(preference -> {
-            Completable.fromAction(GuardianGate::lock)
-                    .subscribeOn(Schedulers.io())
-                    .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe(this::refreshIfAdded, error -> Log.e(TAG, "Failed to lock", error));
+            GuardianGate.lock();
+            refresh();
             return true;
         });
-        findPreference(PREF_ENABLED).setOnPreferenceClickListener(preference -> {
-            boolean enable = !GuardianGate.isEnabled();
+        findPreference(PREF_ENABLED).setOnPreferenceChangeListener((preference, newValue) -> {
+            boolean enable = (Boolean) newValue;
             GuardianCodeDialog.confirmWithCode(requireContext(),
                     enable ? R.string.guardian_turn_on_message : R.string.guardian_turn_off_message,
                     code -> GuardianGate.setEnabled(code, enable), this::refresh);
-            return true;
+            return false;
         });
         findPreference(PREF_WINDOW).setOnPreferenceClickListener(preference -> {
             showWindowChooser();
@@ -101,12 +95,6 @@ public class GuardianPreferencesFragment extends AnimatedPreferenceFragment {
         handler.removeCallbacks(refreshTicker);
     }
 
-    private void refreshIfAdded() {
-        if (isAdded()) {
-            refresh();
-        }
-    }
-
     private void refresh() {
         findPreference(PREF_STATUS).setSummary(statusText());
         Map<String, String> pending = GuardianPendingFeeds.getAll();
@@ -120,9 +108,9 @@ public class GuardianPreferencesFragment extends AnimatedPreferenceFragment {
         findPreference(PREF_LOCK_NOW).setVisible(enabled && GuardianGate.isOpen());
         findPreference(PREF_CHANGE_CODE).setVisible(configured);
 
-        Preference enabledPreference = findPreference(PREF_ENABLED);
+        SwitchPreferenceCompat enabledPreference = findPreference(PREF_ENABLED);
         enabledPreference.setVisible(configured);
-        enabledPreference.setSummary(enabled ? R.string.guardian_enabled_on : R.string.guardian_enabled_off);
+        enabledPreference.setChecked(enabled);
 
         Preference windowPreference = findPreference(PREF_WINDOW);
         windowPreference.setVisible(configured);
@@ -169,13 +157,15 @@ public class GuardianPreferencesFragment extends AnimatedPreferenceFragment {
                                 code -> {
                                     GuardianGate.Result result = PendingSubscriptions.approve(
                                             appContext, code, selected(urls, checked));
-                                    FeedUpdateManager.getInstance().runOnce(appContext);
+                                    if (result == GuardianGate.Result.ACCEPTED) {
+                                        FeedUpdateManager.getInstance().runOnce(appContext);
+                                    }
                                     return result;
-                                }, this::refreshIfAdded))
+                                }, this::refresh))
                 .setNegativeButton(R.string.guardian_pending_reject, (dialog, which) ->
                         GuardianCodeDialog.confirmWithCode(requireContext(), R.string.guardian_pending_reject_message,
                                 code -> PendingSubscriptions.reject(code, selected(urls, checked)),
-                                this::refreshIfAdded))
+                                this::refresh))
                 .setNeutralButton(R.string.cancel_label, null)
                 .show();
     }
