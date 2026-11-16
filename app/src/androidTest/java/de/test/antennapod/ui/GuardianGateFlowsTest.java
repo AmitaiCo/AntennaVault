@@ -19,8 +19,6 @@ import de.danoeh.antennapod.storage.database.PodDBAdapter;
 import de.danoeh.antennapod.storage.preferences.GuardianGate;
 import de.danoeh.antennapod.storage.preferences.GuardianGateTestUtil;
 import de.danoeh.antennapod.storage.preferences.GuardianPendingFeeds;
-import de.danoeh.antennapod.storage.preferences.PlaybackPreferences;
-import de.danoeh.antennapod.storage.preferences.UsageStatistics;
 import de.danoeh.antennapod.ui.appstartintent.MainActivityStarter;
 import de.danoeh.antennapod.ui.screen.onlinefeedview.OnlineFeedViewActivity;
 import de.danoeh.antennapod.ui.screen.preferences.PreferenceActivity;
@@ -54,8 +52,6 @@ import static de.test.antennapod.EspressoTestUtils.clickChildViewWithId;
 import static de.test.antennapod.EspressoTestUtils.clickPreference;
 import static de.test.antennapod.EspressoTestUtils.waitForViewGlobally;
 import static org.hamcrest.Matchers.allOf;
-import static org.hamcrest.Matchers.isEmptyOrNullString;
-import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -163,23 +159,16 @@ public class GuardianGateFlowsTest {
     @Test
     public void streamingPreviewEpisodeAsksForCode() throws Exception {
         Feed preview = subscribedFeedWithPreview();
-        long episodeId = preview.getItems().get(1).getId();
+        long episodeId = preview.getItems().get(0).getId();
         assertEquals(Feed.STATE_NOT_SUBSCRIBED, DBReader.getFeed(preview.getId(), false, 0, 0).getState());
         assertTrue(GuardianGate.isLockedPreview(DBReader.getFeedItem(episodeId)));
         launchMain(new Intent(context, MainActivity.class)
                 .putExtras(new MainActivityStarter(context).withOpenEpisode(episodeId).getIntent()));
 
-        waitForViewGlobally(allOf(withId(R.id.butAction1Text), withText(not(isEmptyOrNullString()))), TIMEOUT);
+        waitForViewGlobally(allOf(withId(R.id.butAction1Text), withText(R.string.stream_label)), TIMEOUT);
         onView(allOf(withId(R.id.butAction1), isDisplayed())).perform(click());
 
-        try {
-            waitForCodePrompt();
-        } catch (RuntimeException | AssertionError e) {
-            throw new AssertionError("No code prompt. gateOpen=" + GuardianGate.isOpen()
-                    + " lockedPreview=" + GuardianGate.isLockedPreview(DBReader.getFeedItem(episodeId))
-                    + " playingMediaId=" + PlaybackPreferences.getCurrentlyPlayingFeedMediaId()
-                    + " streamBias=" + UsageStatistics.hasSignificantBiasTo(UsageStatistics.ACTION_STREAM), e);
-        }
+        waitForCodePrompt();
         onView(withText(R.string.cancel_label)).perform(click());
         assertFalse(GuardianGate.isOpen());
     }
