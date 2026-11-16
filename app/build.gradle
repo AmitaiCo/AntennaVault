@@ -129,6 +129,7 @@ dependencies {
     androidTestImplementation testFixtures(project(':storage:preferences'))
     androidTestImplementation "org.awaitility:awaitility:$awaitilityVersion"
     androidTestImplementation 'com.nanohttpd:nanohttpd:2.1.1'
+    androidTestImplementation "androidx.test:core:$testCoreVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$espressoVersion"
     androidTestImplementation "androidx.test.espresso:espresso-contrib:$espressoVersion"
     androidTestImplementation "androidx.test.espresso:espresso-intents:$espressoVersion"
