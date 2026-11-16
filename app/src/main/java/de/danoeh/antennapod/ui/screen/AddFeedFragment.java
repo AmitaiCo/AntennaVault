@@ -41,6 +41,7 @@ import de.danoeh.antennapod.net.discovery.CombinedSearcher;
 import de.danoeh.antennapod.net.discovery.FyydPodcastSearcher;
 import de.danoeh.antennapod.net.discovery.ItunesPodcastSearcher;
 import de.danoeh.antennapod.net.discovery.PodcastIndexPodcastSearcher;
+import de.danoeh.antennapod.storage.preferences.GuardianGate;
 import de.danoeh.antennapod.ui.appstartintent.OnlineFeedviewActivityStarter;
 import de.danoeh.antennapod.ui.common.Keyboard;
 import de.danoeh.antennapod.ui.discovery.OnlineSearchFragment;
@@ -198,6 +199,10 @@ public class AddFeedFragment extends Fragment {
 
     private void addLocalFolderResult(final Uri uri) {
         if (uri == null) {
+            return;
+        }
+        if (!GuardianGate.isOpen()) {
+            GuardianCodeDialog.runWhenOpen(requireContext(), () -> addLocalFolderResult(uri));
             return;
         }
         Observable.fromCallable(() -> addLocalFolder(uri))

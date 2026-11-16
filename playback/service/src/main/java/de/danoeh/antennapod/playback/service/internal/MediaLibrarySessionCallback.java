@@ -8,7 +8,6 @@ import android.view.KeyEvent;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.WorkerThread;
-import androidx.core.util.Pair;
 import androidx.media.utils.MediaConstants;
 import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
@@ -36,7 +35,6 @@ import de.danoeh.antennapod.playback.base.RewindAfterPauseUtils;
 import de.danoeh.antennapod.ui.appstartintent.MediaButtonStarter;
 import de.danoeh.antennapod.playback.service.R;
 import de.danoeh.antennapod.storage.database.DBReader;
-import de.danoeh.antennapod.storage.preferences.GuardianGate;
 import de.danoeh.antennapod.storage.preferences.PlaybackPreferences;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
 import de.danoeh.antennapod.event.playback.SleepTimerUpdatedEvent;
@@ -264,7 +262,7 @@ public class MediaLibrarySessionCallback implements MediaLibraryService.MediaLib
             Maybe.fromCallable(() -> {
                 List<FeedItem> results = DBReader.searchFeedItems(0, searchQuery, FeedItemFilter.unfiltered());
                 for (FeedItem result : results) {
-                    if (result.getMedia() != null && !isBlockedByGuardian(result.getMedia())) {
+                    if (result.getMedia() != null && !GuardianPlaybackPolicy.isBlocked(result.getMedia())) {
                         return result.getMedia();
                     }
                 }
@@ -288,20 +286,23 @@ public class MediaLibrarySessionCallback implements MediaLibraryService.MediaLib
             return future;
         }
         SettableFuture<MediaSession.MediaItemsWithStartPosition> future = SettableFuture.create();
+        String requestedMediaId = mediaItems.get(index).mediaId;
         Single.fromCallable(
                 () -> {
                     List<MediaItem> updatedItems = onAddMediaItems(mediaSession, controller, mediaItems).get();
-                    long mediaId = Long.parseLong(updatedItems.get(index).mediaId);
-                    FeedMedia mediaDetails = DBReader.getFeedMedia(mediaId);
-                    return new Pair<>(updatedItems, mediaDetails);
+                    int updatedIndex = indexOfMediaId(updatedItems, requestedMediaId);
+                    if (updatedIndex == C.INDEX_UNSET) {
+                        return new MediaSession.MediaItemsWithStartPosition(
+                                Collections.emptyList(), C.INDEX_UNSET, C.TIME_UNSET);
+                    }
+                    FeedMedia mediaDetails = DBReader.getFeedMedia(Long.parseLong(requestedMediaId));
+                    long startPosition = SkipUtils.skipIntroIfNecessary(context, mediaDetails);
+                    startPosition = RewindAfterPauseUtils.calculatePositionWithRewind(
+                            (int) startPosition, mediaDetails.getLastPlayedTimeStatistics());
+                    return new MediaSession.MediaItemsWithStartPosition(updatedItems, updatedIndex, startPosition);
                 })
                 .subscribeOn(Schedulers.io())
-                .subscribe(result -> {
-                    long startPosition = SkipUtils.skipIntroIfNecessary(context, result.second);
-                    startPosition = RewindAfterPauseUtils.calculatePositionWithRewind(
-                            (int) startPosition, result.second.getLastPlayedTimeStatistics());
-                    future.set(new MediaSession.MediaItemsWithStartPosition(result.first, index, startPosition));
-                }, error -> {
+                .subscribe(future::set, error -> {
                     Log.e(TAG, "Failed to load media", error);
                     future.set(new MediaSession.MediaItemsWithStartPosition(
                             Collections.emptyList(), index, startPositionMs));
@@ -360,7 +361,7 @@ public class MediaLibrarySessionCallback implements MediaLibraryService.MediaLib
                     media = items.get(0).getMedia();
                 }
             }
-            return media != null && isBlockedByGuardian(media) ? null : media;
+            return media != null && GuardianPlaybackPolicy.isBlocked(media) ? null : media;
         })
                 .subscribeOn(Schedulers.io())
                 .subscribe(
@@ -543,7 +544,7 @@ public class MediaLibrarySessionCallback implements MediaLibraryService.MediaLib
                     Log.e(TAG, "Media not found for ID: " + mediaId);
                     continue;
                 }
-                if (isBlockedByGuardian(media)) {
+                if (GuardianPlaybackPolicy.isBlocked(media)) {
                     Log.w(TAG, "Not playing an episode of an unsubscribed podcast while the guardian gate is closed");
                     continue;
                 }
@@ -555,9 +556,13 @@ public class MediaLibrarySessionCallback implements MediaLibraryService.MediaLib
         return builder.build();
     }
 
-    private static boolean isBlockedByGuardian(FeedMedia media) {
-        Feed feed = media.getItem() != null ? media.getItem().getFeed() : null;
-        return feed != null && feed.getState() == Feed.STATE_NOT_SUBSCRIBED && !GuardianGate.isOpen();
+    private static int indexOfMediaId(List<MediaItem> items, String mediaId) {
+        for (int i = 0; i < items.size(); i++) {
+            if (items.get(i).mediaId.equals(mediaId)) {
+                return i;
+            }
+        }
+        return C.INDEX_UNSET;
     }
 
     @WorkerThread

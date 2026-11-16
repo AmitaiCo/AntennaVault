@@ -31,6 +31,7 @@ import de.danoeh.antennapod.databinding.OpmlSelectionBinding;
 import de.danoeh.antennapod.model.feed.Feed;
 import de.danoeh.antennapod.storage.importexport.OpmlElement;
 import de.danoeh.antennapod.storage.importexport.OpmlReader;
+import de.danoeh.antennapod.storage.preferences.GuardianGateClosedException;
 import de.danoeh.antennapod.ui.common.ToolbarActivity;
 import de.danoeh.antennapod.ui.screen.guardian.GuardianCodeDialog;
 import io.reactivex.rxjava3.core.Completable;
@@ -119,7 +120,9 @@ public class OpmlImportActivity extends ToolbarActivity {
                             }, e -> {
                                 e.printStackTrace();
                                 viewBinding.progressBar.setVisibility(View.GONE);
-                                Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
+                                String message = e instanceof GuardianGateClosedException
+                                        ? getString(R.string.guardian_import_interrupted) : e.getMessage();
+                                Toast.makeText(this, message, Toast.LENGTH_LONG).show();
                             });
         }));
 

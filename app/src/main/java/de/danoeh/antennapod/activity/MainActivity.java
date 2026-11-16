@@ -53,6 +53,7 @@ import de.danoeh.antennapod.playback.cast.CastEnabledActivity;
 import de.danoeh.antennapod.playback.service.PlaybackController;
 import de.danoeh.antennapod.storage.databasemaintenanceservice.DatabaseMaintenanceWorker;
 import de.danoeh.antennapod.storage.importexport.AutomaticDatabaseExportWorker;
+import de.danoeh.antennapod.storage.preferences.GuardianGate;
 import de.danoeh.antennapod.storage.preferences.PlaybackPreferences;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
 import de.danoeh.antennapod.ui.TransitionEffect;
@@ -75,6 +76,7 @@ import de.danoeh.antennapod.ui.screen.drawer.NavDrawerFragment;
 import de.danoeh.antennapod.ui.screen.drawer.NavigationNames;
 import de.danoeh.antennapod.ui.screen.episode.ItemPagerFragment;
 import de.danoeh.antennapod.ui.screen.feed.FeedItemlistFragment;
+import de.danoeh.antennapod.ui.screen.guardian.GuardianCodeDialog;
 import de.danoeh.antennapod.ui.screen.home.HomeFragment;
 import de.danoeh.antennapod.ui.screen.playback.audio.AudioPlayerFragment;
 import de.danoeh.antennapod.ui.screen.preferences.PreferenceActivity;
@@ -473,6 +475,14 @@ public class MainActivity extends CastEnabledActivity implements NavigationToolb
     }
 
     public void loadFragment(String tag, Bundle args) {
+        if (AddFeedFragment.TAG.equals(tag) && !GuardianGate.isOpen()) {
+            GuardianCodeDialog.runWhenOpen(this, () -> loadFragment(tag, args), () -> {
+                if (getSupportFragmentManager().findFragmentById(R.id.main_content_view) == null) {
+                    loadFragment(SubscriptionFragment.TAG, null);
+                }
+            });
+            return;
+        }
         NavDrawerFragment.saveLastNavFragment(this, tag);
         if (bottomNavigation != null) {
             bottomNavigation.updateSelectedItem(tag);

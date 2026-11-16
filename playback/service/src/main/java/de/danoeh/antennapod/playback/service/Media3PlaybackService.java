@@ -48,6 +48,7 @@ import de.danoeh.antennapod.playback.base.MediaItemAdapter;
 import de.danoeh.antennapod.playback.base.PlayerStatus;
 import de.danoeh.antennapod.playback.base.RewindAfterPauseUtils;
 import de.danoeh.antennapod.playback.cast.CastPlayerWrapper;
+import de.danoeh.antennapod.playback.service.internal.GuardianPlaybackPolicy;
 import de.danoeh.antennapod.playback.service.internal.ExoPlayerUtils;
 import de.danoeh.antennapod.playback.service.internal.MediaLibrarySessionCallback;
 import de.danoeh.antennapod.playback.service.internal.PlayableUtils;
@@ -842,7 +843,8 @@ public class Media3PlaybackService extends MediaLibraryService {
         int startPosition = playbackStartPosition;
         queueLoaderDisposable = Maybe.fromCallable(() -> {
             FeedItem nextItem = DBReader.getNextInQueue(item);
-            boolean hasNext = nextItem != null && nextItem.getMedia() != null;
+            boolean hasNext = nextItem != null && nextItem.getMedia() != null
+                    && !GuardianPlaybackPolicy.isBlocked(nextItem.getMedia());
             updateDatabaseAfterPlayback(media, startPosition, ended, wasSkipped, hasNext);
             if (hasNext) {
                 return new Pair<>(nextItem.getMedia(),

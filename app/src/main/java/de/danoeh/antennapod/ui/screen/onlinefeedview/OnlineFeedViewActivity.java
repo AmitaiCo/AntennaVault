@@ -87,6 +87,7 @@ public class OnlineFeedViewActivity extends AppCompatActivity {
     private Dialog dialog;
     private Disposable download;
     private Disposable parser;
+    private Disposable subscriptionCheck;
     private OnlinefeedviewActivityBinding viewBinding;
 
     @Override
@@ -119,7 +120,17 @@ public class OnlineFeedViewActivity extends AppCompatActivity {
                 password = savedInstanceState.getString("password");
             }
             String url = UrlChecker.prepareUrl(feedUrl);
-            GuardianCodeDialog.runWhenOpen(this, () -> lookupUrlAndDownload(url), this::finish);
+            subscriptionCheck = Maybe.fromCallable(
+                    () -> UrlChecker.containsUrl(DBReader.getFeedListDownloadUrls(true), url))
+                    .subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(alreadySubscribed -> {
+                        if (alreadySubscribed) {
+                            lookupUrlAndDownload(url);
+                        } else {
+                            GuardianCodeDialog.runWhenOpen(this, () -> lookupUrlAndDownload(url), this::finish);
+                        }
+                    }, error -> GuardianCodeDialog.runWhenOpen(this, () -> lookupUrlAndDownload(url), this::finish));
         }
     }
 
@@ -155,6 +166,9 @@ public class OnlineFeedViewActivity extends AppCompatActivity {
     @Override
     public void onDestroy() {
         super.onDestroy();
+        if (subscriptionCheck != null) {
+            subscriptionCheck.dispose();
+        }
         if (download != null) {
             download.dispose();
         }

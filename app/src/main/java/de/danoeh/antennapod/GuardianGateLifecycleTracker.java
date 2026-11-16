@@ -21,7 +21,7 @@ class GuardianGateLifecycleTracker implements Application.ActivityLifecycleCallb
 
     @Override
     public void onActivityStopped(@NonNull Activity activity) {
-        if (--startedActivities == 0) {
+        if (--startedActivities == 0 && !activity.isChangingConfigurations()) {
             GuardianGate.onAppBackgrounded();
         }
     }

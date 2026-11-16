@@ -1,6 +1,8 @@
 package de.danoeh.antennapod.ui.screen.guardian;
 
+import android.app.Activity;
 import android.content.Context;
+import android.content.ContextWrapper;
 import android.text.InputType;
 import android.text.format.DateUtils;
 import android.view.LayoutInflater;
@@ -78,7 +80,10 @@ public final class GuardianCodeDialog {
                     .subscribeOn(Schedulers.io())
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(result -> {
-                        if (!dialog.isShowing()) {
+                        if (!dialog.isShowing() || isGone(context)) {
+                            if (result == GuardianGate.Result.ACCEPTED) {
+                                GuardianGate.lock();
+                            }
                             return;
                         }
                         unlockButton.setEnabled(true);
@@ -98,11 +103,26 @@ public final class GuardianCodeDialog {
     }
 
     private static String errorMessage(Context context, GuardianGate.Result result) {
-        if (result == GuardianGate.Result.LOCKED_OUT) {
-            long seconds = Math.max(1, GuardianGate.getLockoutRemainingMillis() / 1000);
+        if (result == GuardianGate.Result.NOT_CONFIGURED) {
+            return context.getString(R.string.guardian_not_configured_message);
+        }
+        long lockoutMillis = GuardianGate.getLockoutRemainingMillis();
+        if (lockoutMillis > 0) {
+            long seconds = Math.max(1, lockoutMillis / 1000);
             return context.getString(R.string.guardian_locked_out, DateUtils.formatElapsedTime(seconds));
         }
         return context.getString(R.string.guardian_wrong_code);
+    }
+
+    private static boolean isGone(Context context) {
+        while (context instanceof ContextWrapper) {
+            if (context instanceof Activity) {
+                Activity activity = (Activity) context;
+                return activity.isFinishing() || activity.isDestroyed();
+            }
+            context = ((ContextWrapper) context).getBaseContext();
+        }
+        return false;
     }
 
     private static void runIfSet(@Nullable Runnable runnable) {
