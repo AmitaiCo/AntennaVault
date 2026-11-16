@@ -162,6 +162,8 @@ public class GuardianGateFlowsTest {
     public void streamingPreviewEpisodeAsksForCode() throws Exception {
         Feed preview = subscribedFeedWithPreview();
         long episodeId = preview.getItems().get(1).getId();
+        assertEquals(Feed.STATE_NOT_SUBSCRIBED, DBReader.getFeed(preview.getId(), false, 0, 0).getState());
+        assertTrue(GuardianGate.isLockedPreview(DBReader.getFeedItem(episodeId)));
         launchMain(new Intent(context, MainActivity.class)
                 .putExtras(new MainActivityStarter(context).withOpenEpisode(episodeId).getIntent()));
 
