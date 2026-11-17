@@ -38,6 +38,11 @@ public final class GuardianGateTestUtil {
             public long currentTimeMillis() {
                 return millis;
             }
+
+            @Override
+            public int bootCount() {
+                return 1;
+            }
         });
     }
 

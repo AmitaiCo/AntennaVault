@@ -3,7 +3,9 @@ package de.danoeh.antennapod.storage.preferences;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.os.Build;
 import android.os.SystemClock;
+import android.provider.Settings;
 import android.util.Base64;
 
 import androidx.annotation.NonNull;
@@ -45,11 +47,13 @@ public class GuardianGate {
     private static final String KEY_OPENED_AT = "opened_at";
     private static final String KEY_OPEN_UNTIL = "open_until";
     private static final String KEY_OPEN_BOOT = "open_boot";
+    private static final String KEY_OPEN_BOOT_COUNT = "open_boot_count";
     private static final String KEY_BACKGROUND_SINCE = "background_since";
     private static final String KEY_FAILED_COUNT = "failed_count";
     private static final String KEY_LOCKOUT_UNTIL = "lockout_until";
     private static final String KEY_LOCKOUT_MINUTES = "lockout_minutes";
     private static final String KEY_LOCKOUT_BOOT = "lockout_boot";
+    private static final String KEY_LOCKOUT_BOOT_COUNT = "lockout_boot_count";
     private static final String KEY_CODE_SET_AT = "code_set_at";
 
     private static final String ALGORITHM = "PBKDF2WithHmacSHA1";
@@ -62,9 +66,17 @@ public class GuardianGate {
         long elapsedRealtime();
 
         long currentTimeMillis();
+
+        int bootCount();
     }
 
-    private static final Clock SYSTEM_CLOCK = new Clock() {
+    private static class SystemClockSource implements Clock {
+        private final Context context;
+
+        SystemClockSource(Context context) {
+            this.context = context;
+        }
+
         @Override
         public long elapsedRealtime() {
             return SystemClock.elapsedRealtime();
@@ -74,13 +86,27 @@ public class GuardianGate {
         public long currentTimeMillis() {
             return System.currentTimeMillis();
         }
-    };
+
+        @Override
+        public int bootCount() {
+            if (Build.VERSION.SDK_INT < 24) {
+                return -1;
+            }
+            return Settings.Global.getInt(context.getContentResolver(), Settings.Global.BOOT_COUNT, -1);
+        }
+    }
 
     private static SharedPreferences prefs;
-    private static Clock clock = SYSTEM_CLOCK;
+    private static Clock systemClock;
+    private static Clock clock;
 
     public static void init(Context context) {
-        prefs = context.getApplicationContext().getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        Context appContext = context.getApplicationContext();
+        prefs = appContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        systemClock = new SystemClockSource(appContext);
+        if (clock == null) {
+            clock = systemClock;
+        }
     }
 
     public static boolean isConfigured() {
@@ -122,30 +148,15 @@ public class GuardianGate {
         long now = clock.elapsedRealtime();
         long openedAt = prefs().getLong(KEY_OPENED_AT, 0);
         long openUntil = prefs().getLong(KEY_OPEN_UNTIL, 0);
-        if (!isSameBoot(KEY_OPEN_BOOT) || now < openedAt || backgroundedTooLong(now)) {
+        if (!isSameBoot(KEY_OPEN_BOOT, KEY_OPEN_BOOT_COUNT) || now < openedAt || backgroundedTooLong(now)) {
             return 0;
         }
         return Math.max(0, openUntil - now);
     }
 
-    @SuppressLint("ApplySharedPref")
     public static synchronized long getLockoutRemainingMillis() {
-        if (prefs().getLong(KEY_LOCKOUT_UNTIL, 0) == 0) {
-            return 0;
-        }
-        if (!isSameBoot(KEY_LOCKOUT_BOOT)) {
-            long minutes = prefs().getLong(KEY_LOCKOUT_MINUTES, 0);
-            prefs().edit()
-                    .putLong(KEY_LOCKOUT_UNTIL, clock.elapsedRealtime() + TimeUnit.MINUTES.toMillis(minutes))
-                    .putLong(KEY_LOCKOUT_BOOT, bootTime())
-                    .commit();
-        }
-        long remaining = prefs().getLong(KEY_LOCKOUT_UNTIL, 0) - clock.elapsedRealtime();
-        if (remaining <= 0) {
-            prefs().edit().putLong(KEY_LOCKOUT_UNTIL, 0).commit();
-            return 0;
-        }
-        return remaining;
+        refreshLockoutForBootAndExpiry();
+        return Math.max(0, prefs().getLong(KEY_LOCKOUT_UNTIL, 0) - clock.elapsedRealtime());
     }
 
     public static long getCodeSetAt() {
@@ -172,6 +183,7 @@ public class GuardianGate {
                         .putLong(KEY_OPENED_AT, now)
                         .putLong(KEY_OPEN_UNTIL, now + TimeUnit.MINUTES.toMillis(getWindowMinutes()))
                         .putLong(KEY_OPEN_BOOT, bootTime())
+                        .putInt(KEY_OPEN_BOOT_COUNT, clock.bootCount())
                         .putLong(KEY_BACKGROUND_SINCE, 0)
                         .commit();
             }
@@ -272,9 +284,27 @@ public class GuardianGate {
         return clock.currentTimeMillis() - clock.elapsedRealtime();
     }
 
-    private static boolean isSameBoot(String key) {
-        return prefs().contains(key)
-                && Math.abs(prefs().getLong(key, 0) - bootTime()) <= SAME_BOOT_TOLERANCE_MILLIS;
+    private static boolean isSameBoot(String bootTimeKey, String bootCountKey) {
+        return prefs().contains(bootTimeKey)
+                && Math.abs(prefs().getLong(bootTimeKey, 0) - bootTime()) <= SAME_BOOT_TOLERANCE_MILLIS
+                && prefs().getInt(bootCountKey, -1) == clock.bootCount();
+    }
+
+    @SuppressLint("ApplySharedPref")
+    private static void refreshLockoutForBootAndExpiry() {
+        if (prefs().getLong(KEY_LOCKOUT_UNTIL, 0) == 0) {
+            return;
+        }
+        if (!isSameBoot(KEY_LOCKOUT_BOOT, KEY_LOCKOUT_BOOT_COUNT)) {
+            long minutes = prefs().getLong(KEY_LOCKOUT_MINUTES, 0);
+            prefs().edit()
+                    .putLong(KEY_LOCKOUT_UNTIL, clock.elapsedRealtime() + TimeUnit.MINUTES.toMillis(minutes))
+                    .putLong(KEY_LOCKOUT_BOOT, bootTime())
+                    .putInt(KEY_LOCKOUT_BOOT_COUNT, clock.bootCount())
+                    .commit();
+        } else if (prefs().getLong(KEY_LOCKOUT_UNTIL, 0) <= clock.elapsedRealtime()) {
+            prefs().edit().putLong(KEY_LOCKOUT_UNTIL, 0).commit();
+        }
     }
 
     private static boolean backgroundedTooLong(long now) {
@@ -313,7 +343,8 @@ public class GuardianGate {
                 long minutes = lockoutMinutes(failed / ATTEMPTS_BEFORE_LOCKOUT);
                 editor.putLong(KEY_LOCKOUT_UNTIL, clock.elapsedRealtime() + TimeUnit.MINUTES.toMillis(minutes))
                         .putLong(KEY_LOCKOUT_MINUTES, minutes)
-                        .putLong(KEY_LOCKOUT_BOOT, bootTime());
+                        .putLong(KEY_LOCKOUT_BOOT, bootTime())
+                        .putInt(KEY_LOCKOUT_BOOT_COUNT, clock.bootCount());
             }
             editor.commit();
             return Result.WRONG_CODE;
@@ -373,6 +404,6 @@ public class GuardianGate {
 
     @VisibleForTesting
     static void useSystemClock() {
-        clock = SYSTEM_CLOCK;
+        clock = systemClock;
     }
 }

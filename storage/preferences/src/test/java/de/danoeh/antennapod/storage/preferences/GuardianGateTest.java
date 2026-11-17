@@ -28,6 +28,7 @@ public class GuardianGateTest {
     private Context context;
     private long elapsed;
     private long wall;
+    private int bootCount;
 
     @Before
     public void setUp() {
@@ -35,6 +36,7 @@ public class GuardianGateTest {
         GuardianGateTestUtil.resetToUnconfigured(context);
         elapsed = TimeUnit.HOURS.toMillis(1);
         wall = BOOT_TIME + elapsed;
+        bootCount = 3;
         GuardianGate.setClock(new GuardianGate.Clock() {
             @Override
             public long elapsedRealtime() {
@@ -44,6 +46,11 @@ public class GuardianGateTest {
             @Override
             public long currentTimeMillis() {
                 return wall;
+            }
+
+            @Override
+            public int bootCount() {
+                return bootCount;
             }
         });
     }
@@ -64,6 +71,7 @@ public class GuardianGateTest {
 
     private void reboot() {
         elapsed = TimeUnit.SECONDS.toMillis(30);
+        bootCount++;
     }
 
     private void failTimes(int times) {
@@ -404,5 +412,17 @@ public class GuardianGateTest {
         assertTrue(GuardianGate.isLockedPreview(episode));
         GuardianGate.unlock(CODE);
         assertFalse(GuardianGate.isLockedPreview(episode));
+    }
+
+    @Test
+    public void rebootCannotBeDisguisedBySettingTheClock() {
+        GuardianGate.setInitialCode(CODE);
+        GuardianGate.unlock(CODE);
+        long unlockedAtUptime = elapsed;
+        long unlockedAtWallClock = wall;
+        reboot();
+        elapsed = unlockedAtUptime + TimeUnit.SECONDS.toMillis(10);
+        wall = unlockedAtWallClock + TimeUnit.SECONDS.toMillis(10);
+        assertFalse(GuardianGate.isOpen());
     }
 }

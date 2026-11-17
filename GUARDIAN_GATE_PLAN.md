@@ -115,3 +115,5 @@ First run with no code set: show "Hand the phone to your guardian" and set the c
 - Tests open the gate with `GuardianGateTestUtil` from `:storage:preferences` test fixtures.
 - Only give the guardian a release build. A debuggable build allows `adb shell run-as` to delete the gate's settings.
 - Known limits: an approved local folder accepts any audio file added to it later; a preview that is already playing when the gate locks keeps playing until paused.
+- The unlock window, lockout and background grace are timed with the uptime clock. The boot is identified by Android's boot counter (API 24+) and by wall clock minus uptime; a reboot or a wall-clock change of more than a minute closes the window and restarts an unfinished lockout. Automatic time corrections of more than a minute therefore also close an open window early; this is intentional.
+- Settings > Guardian shows when the code was set, so a reset after clearing app data (export, clear, set a new code, import) is visible to the guardian.
