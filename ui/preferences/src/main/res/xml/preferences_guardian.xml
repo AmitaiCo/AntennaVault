@@ -11,6 +11,13 @@
             android:persistent="false" />
 
     <Preference
+            android:key="guardianCodeSet"
+            search:ignore="true"
+            android:title="@string/guardian_code_set_title"
+            android:selectable="false"
+            android:persistent="false" />
+
+    <Preference
             android:key="guardianPending"
             search:ignore="true"
             android:title="@string/guardian_pending_title"

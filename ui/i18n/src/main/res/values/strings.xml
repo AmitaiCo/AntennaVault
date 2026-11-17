@@ -643,7 +643,7 @@
     <string name="guardian_pref_summary">Code needed to add new podcasts</string>
     <string name="guardian_status_title">Status</string>
     <string name="guardian_status_not_configured">No code set. Adding podcasts is locked.</string>
-    <string name="guardian_code_set_on">Code set on %1$s</string>
+    <string name="guardian_code_set_title">Code set on</string>
     <string name="guardian_status_locked">Locked</string>
     <string name="guardian_status_open">Unlocked for %1$s more</string>
     <string name="guardian_status_disabled">Turned off. Anyone can add podcasts.</string>

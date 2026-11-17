@@ -30,6 +30,7 @@ import de.danoeh.antennapod.ui.notifications.GuardianPendingNotification;
 
 public class GuardianPreferencesFragment extends AnimatedPreferenceFragment {
     private static final String PREF_STATUS = "guardianStatus";
+    private static final String PREF_CODE_SET = "guardianCodeSet";
     private static final String PREF_PENDING = "guardianPending";
     private static final String PREF_SET_CODE = "guardianSetCode";
     private static final String PREF_LOCK_NOW = "guardianLockNow";
@@ -99,12 +100,11 @@ public class GuardianPreferencesFragment extends AnimatedPreferenceFragment {
     }
 
     private void refresh() {
-        String status = statusText();
-        if (GuardianGate.isConfigured()) {
-            status += "\n" + getString(R.string.guardian_code_set_on,
-                    DateFormatter.formatAbbrev(requireContext(), new Date(GuardianGate.getCodeSetAt())));
-        }
-        findPreference(PREF_STATUS).setSummary(status);
+        findPreference(PREF_STATUS).setSummary(statusText());
+        Preference codeSetPreference = findPreference(PREF_CODE_SET);
+        codeSetPreference.setVisible(GuardianGate.isConfigured());
+        codeSetPreference.setSummary(
+                DateFormatter.formatAbbrev(requireContext(), new Date(GuardianGate.getCodeSetAt())));
         Map<String, String> pending = GuardianPendingFeeds.getAll();
         Preference pendingPreference = findPreference(PREF_PENDING);
         pendingPreference.setVisible(!pending.isEmpty());

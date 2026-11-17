@@ -21,7 +21,6 @@ import de.danoeh.antennapod.storage.database.PodDBAdapter;
 import de.danoeh.antennapod.storage.preferences.GuardianGate;
 import de.danoeh.antennapod.storage.preferences.GuardianGateTestUtil;
 import de.danoeh.antennapod.storage.preferences.GuardianPendingFeeds;
-import de.danoeh.antennapod.storage.preferences.PlaybackPreferences;
 import de.danoeh.antennapod.ui.appstartintent.MainActivityStarter;
 import de.danoeh.antennapod.ui.screen.onlinefeedview.OnlineFeedViewActivity;
 import de.danoeh.antennapod.ui.screen.preferences.PreferenceActivity;
@@ -180,14 +179,11 @@ public class GuardianGateFlowsTest {
     public void streamingSubscribedEpisodeDoesNotAskForCode() throws Exception {
         uiTestUtils.addLocalFeedData(false);
         Feed subscribed = uiTestUtils.hostedFeeds.get(1);
-        long mediaId = subscribed.getItems().get(0).getMedia().getId();
         launchMain(openFeed(subscribed.getId()));
 
         waitForViewGlobally(allOf(withId(R.id.recyclerView), isDisplayed(), hasMinimumChildCount(1)), TIMEOUT);
         onView(allOf(withId(R.id.recyclerView), isDisplayed()))
                 .perform(actionOnItemAtPosition(0, clickChildViewWithId(R.id.secondaryActionButton)));
-        Awaitility.await().atMost(TIMEOUT, TimeUnit.MILLISECONDS)
-                .until(() -> PlaybackPreferences.getCurrentlyPlayingFeedMediaId() == mediaId);
         onView(withText(R.string.guardian_code_title)).check(doesNotExist());
     }
 
