@@ -73,4 +73,38 @@ public class GuardianGateLifecycleTrackerTest {
         minutesLater(5);
         assertTrue(GuardianGate.isOpen());
     }
+
+    @Test
+    public void rotationDoesNotCountAsLeavingTheApp() {
+        RotatingActivity rotating = Robolectric.buildActivity(RotatingActivity.class).get();
+        tracker.onActivityStarted(rotating);
+        tracker.onActivityStopped(rotating);
+        minutesLater(2);
+        tracker.onActivityStarted(rotating);
+        assertTrue(GuardianGate.isOpen());
+    }
+
+    @Test
+    public void pictureInPictureCountsAsLeavingTheApp() {
+        PictureInPictureActivity video = Robolectric.buildActivity(PictureInPictureActivity.class).get();
+        tracker.onActivityStarted(video);
+        tracker.onActivityPaused(video);
+        minutesLater(2);
+        tracker.onActivityResumed(video);
+        assertFalse(GuardianGate.isOpen());
+    }
+
+    public static class RotatingActivity extends Activity {
+        @Override
+        public boolean isChangingConfigurations() {
+            return true;
+        }
+    }
+
+    public static class PictureInPictureActivity extends Activity {
+        @Override
+        public boolean isInPictureInPictureMode() {
+            return true;
+        }
+    }
 }

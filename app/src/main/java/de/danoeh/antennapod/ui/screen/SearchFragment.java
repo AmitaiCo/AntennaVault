@@ -42,6 +42,7 @@ import de.danoeh.antennapod.net.discovery.CombinedSearcher;
 import de.danoeh.antennapod.storage.database.DBReader;
 import de.danoeh.antennapod.ui.appstartintent.OnlineFeedviewActivityStarter;
 import de.danoeh.antennapod.ui.discovery.OnlineSearchFragment;
+import de.danoeh.antennapod.ui.screen.guardian.GuardianCodeDialog;
 import de.danoeh.antennapod.ui.view.EmptyViewHandler;
 import de.danoeh.antennapod.ui.episodeslist.EpisodeItemListRecyclerView;
 import de.danoeh.antennapod.ui.view.FloatingSelectMenu;
@@ -438,7 +439,8 @@ public class SearchFragment extends Fragment implements EpisodeItemListAdapter.O
         boolean isSearchingFeed = feed != 0;
         updateChipVisibility();
         adapterFeeds.setEndButton(R.string.search_online,
-                (isSearchingFeed || hasEpisodeFilter) ? null : this::searchOnline);
+                (isSearchingFeed || hasEpisodeFilter) ? null
+                        : () -> GuardianCodeDialog.runWhenOpen(requireContext(), this::searchOnline));
 
         String query = searchView.getQuery().toString();
         if (query.isEmpty()) {

@@ -762,7 +762,7 @@ public class MainActivity extends CastEnabledActivity implements NavigationToolb
             if (tag != null) {
                 if (intent.getBooleanExtra(MainActivityStarter.EXTRA_CLEAR_BACK_STACK, true)) {
                     loadFragment(tag, null);
-                } else if (AddFeedFragment.TAG.equals(tag)) {
+                } else if (AddFeedFragment.TAG.equals(tag) || DiscoveryFragment.TAG.equals(tag)) {
                     GuardianCodeDialog.runWhenOpen(this, () ->
                             loadChildFragment(createFragmentInstance(tag, args), TransitionEffect.NONE, tag));
                 } else {
@@ -905,7 +905,8 @@ public class MainActivity extends CastEnabledActivity implements NavigationToolb
     }
 
     private boolean promptBeforeAddFeed(String tag, Bundle args) {
-        if (!AddFeedFragment.TAG.equals(tag) || GuardianGate.isOpen()) {
+        boolean addsPodcasts = AddFeedFragment.TAG.equals(tag) || DiscoveryFragment.TAG.equals(tag);
+        if (!addsPodcasts || GuardianGate.isOpen()) {
             return false;
         }
         boolean nothingShown = getSupportFragmentManager().findFragmentById(R.id.main_content_view) == null;

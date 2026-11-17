@@ -635,6 +635,7 @@
     <string name="guardian_unlock">Unlock</string>
     <string name="guardian_wrong_code">Wrong code</string>
     <string name="guardian_locked_out">Too many wrong codes. Try again in %1$s.</string>
+    <string name="guardian_unlock_expired">The unlock time ran out. Enter the code and try again.</string>
     <string name="guardian_import_interrupted">The unlock time ran out before the import finished. Some podcasts were not added.</string>
     <string name="guardian_not_configured_title">No guardian code yet</string>
     <string name="guardian_not_configured_message">Adding podcasts is locked until a guardian sets a code in Settings → Guardian.</string>
@@ -642,6 +643,7 @@
     <string name="guardian_pref_summary">Code needed to add new podcasts</string>
     <string name="guardian_status_title">Status</string>
     <string name="guardian_status_not_configured">No code set. Adding podcasts is locked.</string>
+    <string name="guardian_code_set_on">Code set on %1$s</string>
     <string name="guardian_status_locked">Locked</string>
     <string name="guardian_status_open">Unlocked for %1$s more</string>
     <string name="guardian_status_disabled">Turned off. Anyone can add podcasts.</string>

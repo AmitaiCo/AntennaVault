@@ -3,6 +3,7 @@ package de.danoeh.antennapod.storage.preferences;
 import android.content.Context;
 
 import de.danoeh.antennapod.model.feed.Feed;
+import de.danoeh.antennapod.model.feed.FeedItem;
 
 import androidx.test.core.app.ApplicationProvider;
 
@@ -23,24 +24,46 @@ import static org.junit.Assert.assertTrue;
 public class GuardianGateTest {
     private static final String OTHER_CODE = "999999";
     private static final String WRONG_CODE = "000000";
+    private static final long BOOT_TIME = 1_000_000_000_000L;
     private Context context;
-    private long now;
+    private long elapsed;
+    private long wall;
 
     @Before
     public void setUp() {
         context = ApplicationProvider.getApplicationContext();
         GuardianGateTestUtil.resetToUnconfigured(context);
-        now = 1_000_000_000_000L;
-        GuardianGate.setClock(() -> now);
+        elapsed = TimeUnit.HOURS.toMillis(1);
+        wall = BOOT_TIME + elapsed;
+        GuardianGate.setClock(new GuardianGate.Clock() {
+            @Override
+            public long elapsedRealtime() {
+                return elapsed;
+            }
+
+            @Override
+            public long currentTimeMillis() {
+                return wall;
+            }
+        });
     }
 
     @After
     public void tearDown() {
-        GuardianGate.setClock(System::currentTimeMillis);
+        GuardianGate.useSystemClock();
     }
 
     private void advanceMinutes(long minutes) {
-        now += TimeUnit.MINUTES.toMillis(minutes);
+        elapsed += TimeUnit.MINUTES.toMillis(minutes);
+        wall += TimeUnit.MINUTES.toMillis(minutes);
+    }
+
+    private void setWallClockMinutes(long minutes) {
+        wall += TimeUnit.MINUTES.toMillis(minutes);
+    }
+
+    private void reboot() {
+        elapsed = TimeUnit.SECONDS.toMillis(30);
     }
 
     private void failTimes(int times) {
@@ -141,7 +164,7 @@ public class GuardianGateTest {
     public void clockSetBackwardsCloses() {
         GuardianGate.setInitialCode(CODE);
         GuardianGate.unlock(CODE);
-        now -= TimeUnit.MINUTES.toMillis(1);
+        setWallClockMinutes(-5);
         assertFalse(GuardianGate.isOpen());
     }
 
@@ -158,7 +181,8 @@ public class GuardianGateTest {
         GuardianGate.setInitialCode(CODE);
         GuardianGate.unlock(CODE);
         GuardianGate.onAppBackgrounded();
-        now += GuardianGate.BACKGROUND_GRACE_MILLIS;
+        elapsed += GuardianGate.BACKGROUND_GRACE_MILLIS;
+        wall += GuardianGate.BACKGROUND_GRACE_MILLIS;
         GuardianGate.onAppForegrounded();
         advanceMinutes(2);
         assertTrue(GuardianGate.isOpen());
@@ -169,7 +193,8 @@ public class GuardianGateTest {
         GuardianGate.setInitialCode(CODE);
         GuardianGate.unlock(CODE);
         GuardianGate.onAppBackgrounded();
-        now += GuardianGate.BACKGROUND_GRACE_MILLIS + 1;
+        elapsed += GuardianGate.BACKGROUND_GRACE_MILLIS + 1;
+        wall += GuardianGate.BACKGROUND_GRACE_MILLIS + 1;
         assertFalse(GuardianGate.isOpen());
         GuardianGate.onAppForegrounded();
         assertFalse(GuardianGate.isOpen());
@@ -180,9 +205,11 @@ public class GuardianGateTest {
         GuardianGate.setInitialCode(CODE);
         GuardianGate.unlock(CODE);
         GuardianGate.onAppBackgrounded();
-        now += GuardianGate.BACKGROUND_GRACE_MILLIS;
+        elapsed += GuardianGate.BACKGROUND_GRACE_MILLIS;
+        wall += GuardianGate.BACKGROUND_GRACE_MILLIS;
         GuardianGate.onAppBackgrounded();
-        now += 1;
+        elapsed += 1;
+        wall += 1;
         assertFalse(GuardianGate.isOpen());
     }
 
@@ -319,5 +346,63 @@ public class GuardianGateTest {
         assertFalse(GuardianGate.isLockedPreview((Feed) null));
         GuardianGate.unlock(CODE);
         assertFalse(GuardianGate.isLockedPreview(preview));
+    }
+
+    @Test
+    public void expiredWindowStaysClosedWhenClockIsSetBack() {
+        GuardianGate.setInitialCode(CODE);
+        GuardianGate.unlock(CODE);
+        advanceMinutes(GuardianGate.DEFAULT_WINDOW_MINUTES + 5);
+        assertFalse(GuardianGate.isOpen());
+        setWallClockMinutes(-(GuardianGate.DEFAULT_WINDOW_MINUTES + 4));
+        assertFalse(GuardianGate.isOpen());
+    }
+
+    @Test
+    public void movingClockForwardDoesNotEndLockout() {
+        GuardianGate.setInitialCode(CODE);
+        failTimes(GuardianGate.ATTEMPTS_BEFORE_LOCKOUT);
+        setWallClockMinutes(TimeUnit.DAYS.toMinutes(2));
+        assertTrue(GuardianGate.getLockoutRemainingMillis() > 0);
+        assertEquals(GuardianGate.Result.LOCKED_OUT, GuardianGate.verify(CODE));
+    }
+
+    @Test
+    public void rebootLocksAndRestartsLockout() {
+        GuardianGate.setInitialCode(CODE);
+        GuardianGate.unlock(CODE);
+        reboot();
+        assertFalse(GuardianGate.isOpen());
+
+        failTimes(GuardianGate.ATTEMPTS_BEFORE_LOCKOUT);
+        reboot();
+        assertEquals(TimeUnit.MINUTES.toMillis(1), GuardianGate.getLockoutRemainingMillis());
+    }
+
+    @Test
+    public void finishedLockoutDoesNotComeBackAfterReboot() {
+        GuardianGate.setInitialCode(CODE);
+        failTimes(GuardianGate.ATTEMPTS_BEFORE_LOCKOUT);
+        advanceMinutes(2);
+        assertEquals(0, GuardianGate.getLockoutRemainingMillis());
+        reboot();
+        assertEquals(0, GuardianGate.getLockoutRemainingMillis());
+        assertEquals(GuardianGate.Result.ACCEPTED, GuardianGate.verify(CODE));
+    }
+
+    @Test
+    public void rememberWhenTheCodeWasSet() {
+        GuardianGate.setInitialCode(CODE);
+        assertEquals(wall, GuardianGate.getCodeSetAt());
+    }
+
+    @Test
+    public void episodeWithoutLoadedPodcastCountsAsLockedWhileClosed() {
+        GuardianGate.setInitialCode(CODE);
+        FeedItem episode = new FeedItem();
+        episode.setFeedId(42);
+        assertTrue(GuardianGate.isLockedPreview(episode));
+        GuardianGate.unlock(CODE);
+        assertFalse(GuardianGate.isLockedPreview(episode));
     }
 }

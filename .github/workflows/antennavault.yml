@@ -149,6 +149,8 @@ jobs:
           sudo udevadm trigger --name-match=kvm
       - name: Android emulator tests
         uses: reactivecircus/android-emulator-runner@v2
+        env:
+          TEST_CLASS: ${{ github.event.inputs.test_class }}
         with:
           api-level: ${{ matrix.api-level }}
           target: ${{ matrix.target }}
@@ -156,7 +158,7 @@ jobs:
           force-avd-creation: false
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
-          script: TEST_CLASS="${{ github.event.inputs.test_class }}" bash .github/workflows/runAntennaVaultEmulatorTests.sh
+          script: bash .github/workflows/runAntennaVaultEmulatorTests.sh
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

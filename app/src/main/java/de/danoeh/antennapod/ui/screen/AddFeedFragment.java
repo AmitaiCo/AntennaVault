@@ -90,15 +90,15 @@ public class AddFeedFragment extends Fragment {
         NestedScrollView scrollView = viewBinding.getRoot().findViewById(R.id.scrollView);
         scrollView.setOnScrollChangeListener(new LiftOnScrollListener(viewBinding.appbar));
 
-        viewBinding.searchItunesButton.setOnClickListener(v
-                -> activity.loadChildFragment(OnlineSearchFragment.newInstance(ItunesPodcastSearcher.class)));
-        viewBinding.searchFyydButton.setOnClickListener(v
-                -> activity.loadChildFragment(OnlineSearchFragment.newInstance(FyydPodcastSearcher.class)));
-        viewBinding.searchPodcastIndexButton.setOnClickListener(v
-                -> activity.loadChildFragment(OnlineSearchFragment.newInstance(PodcastIndexPodcastSearcher.class)));
+        viewBinding.searchItunesButton.setOnClickListener(v -> GuardianCodeDialog.runWhenOpen(requireContext(),
+                () -> activity.loadChildFragment(OnlineSearchFragment.newInstance(ItunesPodcastSearcher.class))));
+        viewBinding.searchFyydButton.setOnClickListener(v -> GuardianCodeDialog.runWhenOpen(requireContext(),
+                () -> activity.loadChildFragment(OnlineSearchFragment.newInstance(FyydPodcastSearcher.class))));
+        viewBinding.searchPodcastIndexButton.setOnClickListener(v -> GuardianCodeDialog.runWhenOpen(requireContext(),
+                () -> activity.loadChildFragment(OnlineSearchFragment.newInstance(PodcastIndexPodcastSearcher.class))));
 
         viewBinding.combinedFeedSearchEditText.setOnEditorActionListener((v, actionId, event) -> {
-            performSearch();
+            GuardianCodeDialog.runWhenOpen(requireContext(), this::performSearch);
             return true;
         });
 
@@ -110,7 +110,8 @@ public class AddFeedFragment extends Fragment {
 
         viewBinding.addLocalFolderButton.setOnClickListener(v ->
                 GuardianCodeDialog.runWhenOpen(requireContext(), this::launchAddLocalFolder));
-        viewBinding.searchButton.setOnClickListener(view -> performSearch());
+        viewBinding.searchButton.setOnClickListener(view ->
+                GuardianCodeDialog.runWhenOpen(requireContext(), this::performSearch));
 
         return viewBinding.getRoot();
     }

@@ -13,6 +13,7 @@ import androidx.preference.SwitchPreferenceCompat;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
@@ -21,6 +22,7 @@ import de.danoeh.antennapod.net.download.serviceinterface.FeedUpdateManager;
 import de.danoeh.antennapod.storage.database.PendingSubscriptions;
 import de.danoeh.antennapod.storage.preferences.GuardianGate;
 import de.danoeh.antennapod.storage.preferences.GuardianPendingFeeds;
+import de.danoeh.antennapod.ui.common.DateFormatter;
 import de.danoeh.antennapod.ui.preferences.screen.AnimatedPreferenceFragment;
 import de.danoeh.antennapod.ui.screen.guardian.GuardianCodeDialog;
 import de.danoeh.antennapod.ui.screen.guardian.GuardianSetCodeDialog;
@@ -97,7 +99,12 @@ public class GuardianPreferencesFragment extends AnimatedPreferenceFragment {
     }
 
     private void refresh() {
-        findPreference(PREF_STATUS).setSummary(statusText());
+        String status = statusText();
+        if (GuardianGate.isConfigured()) {
+            status += "\n" + getString(R.string.guardian_code_set_on,
+                    DateFormatter.formatAbbrev(requireContext(), new Date(GuardianGate.getCodeSetAt())));
+        }
+        findPreference(PREF_STATUS).setSummary(status);
         Map<String, String> pending = GuardianPendingFeeds.getAll();
         Preference pendingPreference = findPreference(PREF_PENDING);
         pendingPreference.setVisible(!pending.isEmpty());

@@ -3,6 +3,7 @@ package de.danoeh.antennapod.ui.screen.feed.preferences;
 import android.app.Activity;
 import android.os.CountDownTimer;
 import android.util.Log;
+import android.widget.Toast;
 import android.view.LayoutInflater;
 import androidx.appcompat.app.AlertDialog;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
@@ -46,15 +47,16 @@ public abstract class EditUrlSettingsDialog {
                 .show();
     }
 
-    private void onConfirmed(String original, String updated) {
+    private boolean onConfirmed(String original, String updated) {
         try {
             DBWriter.changeFeedDownloadUrl(original, updated).get();
             feed.setDownloadUrl(updated);
             FeedUpdateManager.getInstance().runOnce(activityRef.get(), feed);
+            return true;
         } catch (ExecutionException e) {
             if (e.getCause() instanceof GuardianGateClosedException) {
                 Log.w(TAG, e.getCause().getMessage());
-                return;
+                return false;
             }
             throw new RuntimeException(e);
         } catch (InterruptedException e) {
@@ -69,8 +71,11 @@ public abstract class EditUrlSettingsDialog {
                 .setTitle(R.string.edit_url_menu)
                 .setMessage(R.string.edit_url_confirmation_msg)
                 .setPositiveButton(android.R.string.ok, (d, input) -> {
-                    onConfirmed(feed.getDownloadUrl(), url);
-                    setUrl(url);
+                    if (onConfirmed(feed.getDownloadUrl(), url)) {
+                        setUrl(url);
+                    } else {
+                        Toast.makeText(activity, R.string.guardian_unlock_expired, Toast.LENGTH_LONG).show();
+                    }
                 })
                 .setNegativeButton(R.string.cancel_label, null)
                 .show();

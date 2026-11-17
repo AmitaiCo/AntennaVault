@@ -12,7 +12,7 @@ public final class GuardianGateTestUtil {
         for (String name : new String[] {GuardianGate.PREF_NAME, GuardianPendingFeeds.PREF_NAME}) {
             context.getApplicationContext().getSharedPreferences(name, Context.MODE_PRIVATE).edit().clear().apply();
         }
-        GuardianGate.setClock(System::currentTimeMillis);
+        GuardianGate.useSystemClock();
         GuardianGate.init(context);
         GuardianPendingFeeds.init(context);
     }
@@ -28,7 +28,17 @@ public final class GuardianGateTestUtil {
     }
 
     public static void setNow(long millis) {
-        GuardianGate.setClock(() -> millis);
+        GuardianGate.setClock(new GuardianGate.Clock() {
+            @Override
+            public long elapsedRealtime() {
+                return millis;
+            }
+
+            @Override
+            public long currentTimeMillis() {
+                return millis;
+            }
+        });
     }
 
     public static void open() {
