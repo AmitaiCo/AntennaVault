@@ -49,13 +49,10 @@ import static androidx.test.espresso.action.ViewActions.click;
 import static androidx.test.espresso.action.ViewActions.pressImeActionButton;
 import static androidx.test.espresso.action.ViewActions.replaceText;
 import static androidx.test.espresso.assertion.ViewAssertions.doesNotExist;
-import static androidx.test.espresso.contrib.RecyclerViewActions.actionOnItemAtPosition;
-import static androidx.test.espresso.matcher.ViewMatchers.hasMinimumChildCount;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
 import static de.test.antennapod.EspressoTestUtils.actionBarOverflow;
-import static de.test.antennapod.EspressoTestUtils.clickChildViewWithId;
 import static de.test.antennapod.EspressoTestUtils.clickPreference;
 import static de.test.antennapod.EspressoTestUtils.waitForViewGlobally;
 import static org.hamcrest.Matchers.allOf;
@@ -181,12 +178,18 @@ public class GuardianGateFlowsTest {
     public void streamingSubscribedEpisodeDoesNotAskForCode() throws Exception {
         UserPreferences.setAllowMobileStreaming(true);
         uiTestUtils.addLocalFeedData(false);
-        Feed subscribed = uiTestUtils.hostedFeeds.get(1);
-        launchMain(openFeed(subscribed.getId()));
+        long episodeId = 0;
+        for (FeedItem item : uiTestUtils.hostedFeeds.get(1).getItems()) {
+            if (episodeId == 0 && DBReader.getFeedItem(item.getId()).hasMedia()) {
+                episodeId = item.getId();
+            }
+        }
+        assertTrue(episodeId != 0);
+        launchMain(new Intent(context, MainActivity.class)
+                .putExtras(new MainActivityStarter(context).withOpenEpisode(episodeId).getIntent()));
 
-        waitForViewGlobally(allOf(withId(R.id.recyclerView), isDisplayed(), hasMinimumChildCount(1)), TIMEOUT);
-        onView(allOf(withId(R.id.recyclerView), isDisplayed()))
-                .perform(actionOnItemAtPosition(0, clickChildViewWithId(R.id.secondaryActionButton)));
+        waitForViewGlobally(allOf(withId(R.id.butAction1Text), withText(R.string.stream_label)), TIMEOUT);
+        onView(allOf(withId(R.id.butAction1), isDisplayed())).perform(click());
         onView(withText(R.string.guardian_code_title)).check(doesNotExist());
         Awaitility.await().atMost(TIMEOUT, TimeUnit.MILLISECONDS).until(() ->
                 PlaybackPreferences.getCurrentPlayerStatus() == PlaybackPreferences.PLAYER_STATUS_PLAYING);
