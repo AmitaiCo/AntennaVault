@@ -75,7 +75,7 @@ public class NewEpisodesNotification {
 
         Notification notification = new NotificationCompat.Builder(
                 context, NotificationUtils.CHANNEL_ID_EPISODE_NOTIFICATIONS)
-                .setSmallIcon(R.drawable.ic_notification_new)
+                .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle(title)
                 .setLargeIcon(loadIcon(context, feed))
                 .setContentText(text)
@@ -103,7 +103,7 @@ public class NewEpisodesNotification {
 
         Notification notificationGroupSummary = new NotificationCompat.Builder(
                 context, NotificationUtils.CHANNEL_ID_EPISODE_NOTIFICATIONS)
-                .setSmallIcon(R.drawable.ic_notification_new)
+                .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle(context.getString(R.string.new_episode_notification_group_text))
                 .setContentIntent(pendingIntent)
                 .setGroup(GROUP_KEY)
